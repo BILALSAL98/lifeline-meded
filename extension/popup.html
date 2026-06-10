@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lifeline Recall</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 56 78" width="28" height="39" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <path d="M2,0 C38,8 34,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+        <path d="M7,0 C36,12 32,46 28,62" stroke="#a8e063" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M11,0 C28,16 28,44 28,62" stroke="#ffd600" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M15,0 C22,18 26,44 28,62" stroke="#ffc107" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M19,0 C20,22 26,46 28,62" stroke="#ff9800" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M22,0 C22,26 26,48 28,62" stroke="#ff5722" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M25,0 C24,30 26,50 28,62" stroke="#f44336" stroke-width="2.3" stroke-linecap="round"/>
+        <path d="M28,0 C28,32 28,50 28,62" stroke="#e91e63" stroke-width="2.3" stroke-linecap="round"/>
+        <path d="M31,0 C32,30 30,50 28,62" stroke="#ab47bc" stroke-width="2.3" stroke-linecap="round"/>
+        <path d="M34,0 C36,26 30,48 28,62" stroke="#9b5fe0" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M37,0 C38,22 30,46 28,62" stroke="#2196f3" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M41,0 C40,18 30,44 28,62" stroke="#00bcd4" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M45,0 C42,14 30,44 28,62" stroke="#00c9b1" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M49,0 C36,12 28,46 28,62" stroke="#4caf50" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M54,0 C18,8 22,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+        <polygon points="28,78 14,62 42,62" fill="#78c840"/>
+      </svg>
+      <div>
+        <div class="logo-text">LIFELINE</div>
+        <div class="logo-sub">Medical Education</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="status-dot"></div>
+    </div>
+  </div>
+
+  <!-- Rainbow stripe -->
+  <div style="height:3px;background:linear-gradient(90deg,#9b5fe0 0%,#4f8ef7 12%,#00c9b1 24%,#4caf50 36%,#a8e063 48%,#ffc107 60%,#ff9800 72%,#f44336 84%,#e91e63 100%);"></div>
+
+  <!-- AI Key Setup — always visible at top -->
+  <div class="section" id="ai-key-section">
+
+    <!-- Groq — FREE, recommended -->
+    <div style="background:rgba(120,200,64,0.08);border:1.5px solid rgba(120,200,64,0.3);border-radius:11px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:10px;font-weight:700;color:#78c840;text-transform:uppercase;letter-spacing:0.09em;">🆓 Groq — FREE, No Credit Card</div>
+        <span style="font-size:9px;background:rgba(120,200,64,0.15);color:#78c840;padding:2px 7px;border-radius:5px;font-weight:700;">RECOMMENDED</span>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:8px;line-height:1.45;">
+        Uses LLaMA 3.1 — completely free, instant, no billing needed.<br>
+        Get key at <a class="link" href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>
+      </div>
+      <div class="field-group">
+        <input type="password" id="groq-key-input" class="field-input" placeholder="gsk_... paste your Groq key here" />
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn-primary" id="save-groq-btn" style="flex:1;">Save Groq Key</button>
+        <button class="btn-primary" id="test-groq-btn" style="flex:0 0 auto;width:auto;padding:10px 14px;background:rgba(120,200,64,0.15);color:#78c840;border:1px solid rgba(120,200,64,0.3);">Test</button>
+      </div>
+      <div id="groq-key-status" style="font-size:11px;margin-top:6px;color:#78c840;display:none;"></div>
+    </div>
+
+    <!-- OpenAI — paid -->
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:12px;">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.09em;margin-bottom:8px;">OpenAI / ChatGPT (requires $5 credit)</div>
+      <div class="field-group">
+        <input type="password" id="openai-key-input" class="field-input" placeholder="sk-... paste your OpenAI key here" />
+        <div class="field-hint" style="margin-top:4px;">
+          <a class="link" href="https://platform.openai.com/api-keys" target="_blank">Get key</a> ·
+          <a class="link" href="https://platform.openai.com/settings/organization/billing" target="_blank">Add billing</a>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn-primary" id="save-openai-key-btn" style="flex:1;">Save OpenAI Key</button>
+        <button class="btn-primary" id="test-openai-btn" style="flex:0 0 auto;width:auto;padding:10px 14px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.1);">Test</button>
+      </div>
+      <div id="openai-key-status" style="font-size:11px;margin-top:6px;color:#78c840;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Quick Capture — always visible, no login required -->
+  <div class="section" id="quick-capture-section">
+    <div class="section-label">Quick Capture</div>
+    <div class="quick-capture">
+      <textarea
+        id="quick-text"
+        class="quick-textarea"
+        placeholder="Paste any medical text here to generate flashcards instantly..."
+        rows="5"
+      ></textarea>
+      <div class="source-row">
+        <select class="source-select" id="quick-source">
+          <option value="qbank">📋 Question Bank</option>
+          <option value="video">🎬 Video / Lecture</option>
+          <option value="textbook">📖 Textbook</option>
+          <option value="notes">📝 Notes</option>
+          <option value="other">🌐 Other</option>
+        </select>
+        <button class="btn-primary btn-small" id="quick-generate-btn">⚡ Generate</button>
+      </div>
+    </div>
+
+    <!-- Quick generate result -->
+    <div id="quick-result" style="display:none;">
+      <div class="section-label" id="quick-result-label">Generated Cards</div>
+      <div id="quick-cards-list"></div>
+      <button class="btn-secondary" id="quick-anki-export" style="display:none;margin-bottom:6px;">📦 Export for Anki</button>
+      <button class="btn-secondary" id="quick-save-all" style="display:none;">💾 Save All to Lifeline</button>
+    </div>
+  </div>
+
+  <!-- Not connected state -->
+  <div id="not-connected" class="section" style="display:none;">
+    <div class="connect-card">
+      <div class="connect-icon">🔗</div>
+      <div class="connect-title">Connect to Lifeline</div>
+      <div class="connect-desc">Sign in to save cards to your Lifeline account with spaced repetition and study guides.</div>
+      <div class="field-group">
+        <label class="field-label">Lifeline URL</label>
+        <input type="text" id="api-url-input" class="field-input" placeholder="http://localhost:3000" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">API Token</label>
+        <input type="text" id="token-input" class="field-input" placeholder="Paste your token from Lifeline settings" />
+        <div class="field-hint">
+          Get your token from
+          <a class="link" href="#" id="open-settings-link">Lifeline Settings → API</a>
+        </div>
+      </div>
+      <button class="btn-primary" id="connect-btn">Connect Account</button>
+      <button class="btn-secondary" id="open-card-creator-btn-2" style="margin-top:6px;">
+        ✦ Open Anki Card Creator (no account needed)
+      </button>
+      <button class="btn-secondary" id="open-roundroom-btn-2" style="margin-top:6px;border-color:rgba(0,201,177,0.3);background:rgba(0,201,177,0.07);color:#00c9b1;">
+        🩺 Open Round Room — AI Voice Consultations
+      </button>
+
+      <!-- AI Keys -->
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">
+        <!-- OpenAI — PRIMARY -->
+        <div style="background:rgba(120,200,64,0.06);border:1px solid rgba(120,200,64,0.2);border-radius:10px;padding:11px;margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:700;color:#78c840;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">
+            ⚡ ChatGPT — Primary AI (Recommended)
+          </div>
+          <div class="field-group">
+            <input type="password" id="openai-key-input" class="field-input"
+              placeholder="sk-... — paste your OpenAI API key" />
+            <div class="field-hint" style="margin-top:5px;">
+              Get a key at <a class="link" href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>
+            </div>
+          </div>
+          <button class="btn-primary" id="save-openai-key-btn" style="margin-top:8px;">Save OpenAI Key</button>
+          <div id="openai-key-status" style="font-size:11px;margin-top:6px;color:#78c840;display:none;">✓ OpenAI key saved — GPT-4o active</div>
+        </div>
+
+        <!-- Anthropic — alternative -->
+        <div class="field-group">
+          <label class="field-label">Claude (Anthropic) — Alternative</label>
+          <input type="password" id="anthropic-key-input" class="field-input"
+            placeholder="sk-ant-... — optional Claude alternative" />
+        </div>
+        <button class="btn-primary" id="save-api-key-btn" style="margin-top:8px;">Save Anthropic Key</button>
+        <div id="api-key-status" style="font-size:11px;margin-top:6px;color:#78c840;display:none;">✓ Anthropic key saved</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connected state -->
+  <div id="connected" class="section" style="display:none;">
+
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Cards Saved</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-sessions">0</div>
+        <div class="stat-label">Sessions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-today">0</div>
+        <div class="stat-label">Today</div>
+      </div>
+    </div>
+
+    <!-- Recent cards -->
+    <div id="recent-section" style="display:none;">
+      <div class="section-label">Recently Saved</div>
+      <div id="recent-cards"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-row">
+      <button class="btn-action" id="open-card-creator-btn">
+        <span class="btn-action-icon">✦</span>
+        Anki Creator
+      </button>
+      <button class="btn-action" id="open-lifeline-btn">
+        <span class="btn-action-icon">🏥</span>
+        Open Lifeline
+      </button>
+      <button class="btn-action" id="open-roundroom-btn" style="border-color:rgba(0,201,177,0.3);background:rgba(0,201,177,0.07);color:#00c9b1;">
+        <span class="btn-action-icon">🩺</span>
+        Round Room
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <button class="footer-link" id="disconnect-btn" style="display:none;">Disconnect</button>
+    <span class="footer-version">v1.0.0</span>
+    <button class="footer-link" id="help-btn">Help</button>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Generating...</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+/* Lifeline Medical Education — Extension Popup
+   Brand: deep navy #021533 · green #78c840 · white */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 340px;
+  min-height: 200px;
+  max-height: 600px;
+  background: #050505;
+  color: white;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+body::-webkit-scrollbar { width: 4px; }
+body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: #080808;
+  position: sticky; top: 0; z-index: 10;
+}
+
+.logo { display: flex; align-items: center; gap: 9px; }
+
+.logo-strands { width: 28px; height: 34px; flex-shrink: 0; }
+
+.logo-text { font-size: 13px; font-weight: 800; color: white;
+  letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.15; }
+
+.logo-sub { font-size: 8px; color: rgba(255,255,255,0.35);
+  font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+
+.header-right { display: flex; align-items: center; gap: 8px; }
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); transition: background 0.3s;
+}
+.status-dot.connected { background: #78c840; box-shadow: 0 0 6px rgba(120,200,64,0.5); }
+.status-dot.disconnected { background: #f87171; }
+
+/* ── Sections ── */
+.section { padding: 12px 14px; }
+
+/* ── Connect card ── */
+.connect-card { display: flex; flex-direction: column; gap: 10px; }
+.connect-icon { font-size: 28px; text-align: center; margin-bottom: 2px; }
+.connect-title { font-size: 15px; font-weight: 800; color: white; text-align: center; }
+.connect-desc { font-size: 11px; color: rgba(255,255,255,0.4); text-align: center; line-height: 1.5; }
+
+/* ── Form fields ── */
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+
+.field-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: rgba(255,255,255,0.28);
+}
+
+.field-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 9px;
+  padding: 8px 10px; font-size: 12px; color: rgba(255,255,255,0.8);
+  outline: none; font-family: inherit; transition: border-color 0.2s;
+}
+.field-input:focus { border-color: rgba(120,200,64,0.45); }
+.field-input::placeholder { color: rgba(255,255,255,0.18); }
+
+.field-hint { font-size: 10px; color: rgba(255,255,255,0.22); line-height: 1.4; }
+
+.link { color: #78c840; cursor: pointer; text-decoration: none; }
+.link:hover { color: #8fd84a; }
+
+/* ── Buttons ── */
+.btn-primary {
+  width: 100%; padding: 10px; border-radius: 10px; border: none;
+  background: #78c840; color: #021533;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s; font-family: inherit;
+}
+.btn-primary:hover { background: #8fd84a; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary.btn-small { width: auto; padding: 7px 13px; font-size: 11px; }
+
+.btn-secondary {
+  width: 100%; padding: 9px; border-radius: 10px;
+  border: 1px solid rgba(120,200,64,0.25); background: rgba(120,200,64,0.08);
+  color: #78c840; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s; font-family: inherit; margin-top: 8px;
+}
+.btn-secondary:hover { background: rgba(120,200,64,0.16); }
+
+/* ── Stats row ── */
+.stats-row { display: flex; gap: 8px; margin-bottom: 12px; }
+
+.stat-card {
+  flex: 1; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+  padding: 8px 6px; text-align: center;
+}
+.stat-value { font-size: 18px; font-weight: 900; color: #78c840; line-height: 1.2; }
+.stat-label {
+  font-size: 9px; color: rgba(255,255,255,0.28); margin-top: 2px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: rgba(255,255,255,0.25); margin-bottom: 7px;
+}
+
+/* ── Quick capture ── */
+.quick-capture { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+
+.quick-textarea {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 10px;
+  padding: 9px 10px; font-size: 11px; color: rgba(255,255,255,0.75);
+  outline: none; resize: none; font-family: inherit; line-height: 1.5;
+  transition: border-color 0.2s;
+}
+.quick-textarea:focus { border-color: rgba(120,200,64,0.4); }
+.quick-textarea::placeholder { color: rgba(255,255,255,0.18); }
+
+.source-row { display: flex; gap: 6px; align-items: center; }
+
+.source-select {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 8px;
+  padding: 6px 8px; font-size: 11px; color: rgba(255,255,255,0.65);
+  outline: none; font-family: inherit; cursor: pointer;
+}
+
+/* ── Generated cards (popup) ── */
+.quick-card {
+  background: #111111; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 10px; margin-bottom: 7px;
+}
+.quick-card-type {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 5px; margin-bottom: 6px;
+  color: rgba(120,200,64,0.7); background: rgba(120,200,64,0.08);
+  border: 1px solid rgba(120,200,64,0.2);
+}
+.quick-card-q { font-size: 11px; color: rgba(255,255,255,0.75); line-height: 1.45; margin-bottom: 5px; }
+.quick-card-a {
+  font-size: 11px; color: rgba(255,255,255,0.45); line-height: 1.45;
+  padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ── Recent cards ── */
+.recent-card {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.recent-card:last-child { border-bottom: none; }
+.recent-card-dot { width: 6px; height: 6px; border-radius: 50%; background: #78c840; flex-shrink: 0; }
+.recent-card-text {
+  flex: 1; font-size: 11px; color: rgba(255,255,255,0.5);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Action buttons ── */
+.actions-row { display: flex; gap: 7px; margin-top: 4px; }
+
+.btn-action {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 5px; padding: 10px 6px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.45); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+}
+.btn-action:hover { background: rgba(120,200,64,0.08); color: #78c840; border-color: rgba(120,200,64,0.2); }
+.btn-action-icon { font-size: 18px; }
+
+/* ── Footer ── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-top: 1px solid rgba(255,255,255,0.05);
+  background: #080808;
+}
+.footer-link {
+  font-size: 10px; color: rgba(255,255,255,0.2);
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  transition: color 0.15s;
+}
+.footer-link:hover { color: rgba(120,200,64,0.7); }
+.footer-version { font-size: 10px; color: rgba(255,255,255,0.12); font-weight: 600; }
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(2,21,51,0.88);
+  backdrop-filter: blur(4px); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; z-index: 100;
+}
+.loading-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid rgba(120,200,64,0.2); border-top-color: #78c840;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 12px; color: rgba(255,255,255,0.45); font-weight: 600; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 50px; left: 50%;
+  transform: translateX(-50%);
+  background: #080808; border: 1px solid rgba(120,200,64,0.35);
+  color: #78c840; padding: 7px 14px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  animation: toast-in 0.25s ease-out; z-index: 200;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── API key status badges ── */
+#api-key-status, #openai-key-status {
+  font-size: 10px; color: #78c840; font-weight: 600;
+}

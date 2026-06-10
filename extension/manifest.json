@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Lifeline Recall",
+  "short_name": "Lifeline",
+  "version": "1.0.0",
+  "description": "Capture text from any page, YouTube subtitles, and question banks. Generate Anki flashcards and study guides instantly with AI.",
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus",
+    "scripting",
+    "alarms"
+  ],
+
+  "host_permissions": [
+    "*://*/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["*://www.youtube.com/*", "*://youtube.com/*"],
+      "js": ["youtube.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lifeline Recall",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "commands": {
+    "open-sidebar": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Open Lifeline sidebar"
+    }
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "fonts/*", "cards.html", "roundroom.html", "icons/lifeline-logo.svg", "livekit-client.umd.min.js"],
+      "matches": ["*://*/*"]
+    }
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' wss://api.elevenlabs.io https://api.elevenlabs.io https://api.d-id.com wss://*.d-id.com https://*.d-id.com wss://*.livekit.cloud https://*.livekit.cloud wss://*.livekit.io https://*.livekit.io;"
+  }
+}

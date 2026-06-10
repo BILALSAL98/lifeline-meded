@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lifeline — Anki Card Creator</title>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #050505;
+  color: #fff;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: #080808;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo img { width: 32px; height: 38px; }
+.header-logo-text { line-height: 1.2; }
+.header-logo-name {
+  font-size: 15px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #fff;
+}
+.header-logo-sub {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.35);
+}
+.header-title {
+  font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px;
+}
+.header-title span { color: #78c840; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* ── Rainbow stripe ── */
+.rainbow {
+  height: 3px;
+  background: linear-gradient(90deg,
+    #9b5fe0 0%, #4f8ef7 12%, #00c9b1 24%, #4caf50 36%,
+    #a8e063 48%, #ffc107 60%, #ff9800 72%, #f44336 84%, #e91e63 100%);
+  flex-shrink: 0;
+}
+
+/* ── Main layout ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  gap: 0;
+  overflow: hidden;
+  height: calc(100vh - 65px);
+}
+
+/* ── Left panel — Editor ── */
+.editor-panel {
+  border-right: 1px solid rgba(255,255,255,0.07);
+  padding: 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #050505;
+}
+.editor-panel::-webkit-scrollbar { width: 4px; }
+.editor-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius:2px; }
+
+/* ── Right panel — Card list ── */
+.cards-panel {
+  padding: 22px;
+  overflow-y: auto;
+  background: #050505;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cards-panel::-webkit-scrollbar { width: 4px; }
+.cards-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius:2px; }
+
+/* ── Section label ── */
+.section-lbl {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.3); margin-bottom: 6px;
+}
+
+/* ── Card type selector ── */
+.type-row {
+  display: flex;
+  gap: 6px;
+}
+.type-btn {
+  flex: 1; padding: 9px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.45);
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  font-family: inherit; text-align: center;
+}
+.type-btn:hover { border-color: rgba(120,200,64,0.3); color: rgba(255,255,255,0.8); }
+.type-btn.active {
+  background: rgba(120,200,64,0.12); border-color: rgba(120,200,64,0.4);
+  color: #78c840;
+}
+
+/* ── Deck row ── */
+.deck-row { display: flex; gap: 8px; align-items: flex-end; }
+.deck-input {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 9px;
+  padding: 9px 12px; font-size: 13px; color: rgba(255,255,255,0.85);
+  outline: none; font-family: inherit; transition: border-color 0.2s;
+}
+.deck-input:focus { border-color: rgba(120,200,64,0.45); }
+.deck-preset {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px; padding: 9px 10px; font-size: 12px; color: rgba(255,255,255,0.5);
+  cursor: pointer; outline: none; font-family: inherit; white-space: nowrap;
+}
+
+/* ── Rich text editor ── */
+.editor-wrap { display: flex; flex-direction: column; gap: 0; }
+.toolbar {
+  display: flex; gap: 3px; padding: 7px 9px;
+  background: #111; border: 1px solid rgba(255,255,255,0.09);
+  border-bottom: none; border-radius: 9px 9px 0 0;
+  flex-wrap: wrap;
+}
+.tb-btn {
+  padding: 4px 9px; border-radius: 5px; border: none;
+  background: transparent; color: rgba(255,255,255,0.45);
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.12s;
+  font-family: inherit; line-height: 1;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.tb-btn.active { background: rgba(120,200,64,0.15); color: #78c840; }
+.tb-divider {
+  width: 1px; background: rgba(255,255,255,0.1); margin: 3px 4px; align-self: stretch;
+}
+.tb-cloze {
+  padding: 4px 9px; border-radius: 5px; border: none; cursor: pointer;
+  font-size: 11px; font-weight: 700; font-family: inherit; line-height: 1;
+  transition: all 0.12s;
+}
+.tb-c1 { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.tb-c2 { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.tb-c3 { background: rgba(248,113,113,0.15); color: #f87171; }
+.tb-c1:hover { background: rgba(96,165,250,0.28); }
+.tb-c2:hover { background: rgba(251,191,36,0.28); }
+.tb-c3:hover { background: rgba(248,113,113,0.28); }
+
+.editor {
+  min-height: 100px; max-height: 220px; overflow-y: auto;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 0 0 9px 9px;
+  padding: 11px 13px; font-size: 14px; color: rgba(255,255,255,0.88);
+  line-height: 1.65; outline: none; font-family: inherit;
+}
+.editor:focus { border-color: rgba(120,200,64,0.4); background: rgba(120,200,64,0.02); }
+.editor:empty::before {
+  content: attr(data-placeholder); color: rgba(255,255,255,0.2);
+  pointer-events: none;
+}
+.editor::-webkit-scrollbar { width: 4px; }
+.editor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius:2px; }
+/* Formatting styles inside editor */
+.editor b, .editor strong { font-weight: 700; }
+.editor i, .editor em { font-style: italic; }
+.editor u { text-decoration: underline; }
+.editor s { text-decoration: line-through; }
+.editor code {
+  font-family: 'Courier New', monospace; font-size: 12px;
+  background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px;
+  color: #78c840;
+}
+.editor ul, .editor ol { padding-left: 20px; }
+.editor li { margin: 3px 0; }
+.cloze-c1 { background: rgba(96,165,250,0.2); color: #60a5fa; border-radius:3px; padding:0 3px; font-weight:700; }
+.cloze-c2 { background: rgba(251,191,36,0.2); color: #fbbf24; border-radius:3px; padding:0 3px; font-weight:700; }
+.cloze-c3 { background: rgba(248,113,113,0.2); color: #f87171; border-radius:3px; padding:0 3px; font-weight:700; }
+
+/* ── Tags ── */
+.tags-wrap {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 9px; padding: 7px 10px; min-height: 38px; cursor: text;
+}
+.tags-wrap:focus-within { border-color: rgba(120,200,64,0.4); }
+.tag-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(120,200,64,0.12); border: 1px solid rgba(120,200,64,0.25);
+  color: #78c840; border-radius: 6px; padding: 3px 9px;
+  font-size: 12px; font-weight: 600;
+}
+.tag-pill button {
+  background: none; border: none; color: rgba(120,200,64,0.6);
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 0;
+}
+.tag-pill button:hover { color: #78c840; }
+.tag-input {
+  background: transparent; border: none; outline: none;
+  color: rgba(255,255,255,0.8); font-size: 13px; font-family: inherit;
+  min-width: 100px; flex: 1;
+}
+.tag-input::placeholder { color: rgba(255,255,255,0.2); }
+
+/* ── Add card button ── */
+.add-btn {
+  width: 100%; padding: 13px; border-radius: 10px; border: none;
+  background: #78c840; color: #050505; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s; font-family: inherit;
+  letter-spacing: 0.01em;
+}
+.add-btn:hover { background: #8fd84a; }
+.add-btn:active { transform: scale(0.99); }
+
+/* ── Action buttons ── */
+.action-btn {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6);
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  font-family: inherit; white-space: nowrap;
+}
+.action-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.action-btn.green {
+  border-color: rgba(120,200,64,0.35); background: rgba(120,200,64,0.1); color: #78c840;
+}
+.action-btn.green:hover { background: rgba(120,200,64,0.2); }
+
+/* ── Cards list panel ── */
+.cards-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.cards-count {
+  font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+.card-item {
+  background: #111; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 11px; overflow: hidden; transition: border-color 0.15s;
+}
+.card-item:hover { border-color: rgba(120,200,64,0.2); }
+.card-item-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 13px 0;
+}
+.card-item-type {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.28);
+}
+.card-item-deck {
+  font-size: 9px; color: rgba(120,200,64,0.5); font-weight: 600;
+}
+.card-item-btns { display: flex; gap: 5px; }
+.ci-btn {
+  padding: 3px 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4);
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: all 0.12s;
+}
+.ci-btn:hover { color: #fff; background: rgba(255,255,255,0.09); }
+.ci-btn.del:hover { color: #f87171; border-color: rgba(248,113,113,0.2); background: rgba(248,113,113,0.07); }
+.ci-btn.edit-active { color: #78c840; border-color: rgba(120,200,64,0.3); background: rgba(120,200,64,0.08); }
+
+.card-item-front {
+  padding: 9px 13px 4px; font-size: 13px; color: rgba(255,255,255,0.85);
+  line-height: 1.55; font-weight: 500;
+}
+.card-item-back {
+  padding: 4px 13px 10px; font-size: 12px; color: rgba(255,255,255,0.5);
+  line-height: 1.55; border-top: 1px solid rgba(255,255,255,0.05);
+  margin: 0 13px; padding-top: 7px; margin-bottom: 10px;
+}
+.card-item-tags {
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 0 13px 10px;
+}
+.ci-tag {
+  font-size: 9px; padding: 2px 7px; border-radius: 4px;
+  background: rgba(120,200,64,0.07); border: 1px solid rgba(120,200,64,0.15);
+  color: rgba(120,200,64,0.55); font-weight: 600;
+}
+
+/* Inline edit inside card item */
+.card-item-edit {
+  padding: 10px 13px; display: flex; flex-direction: column; gap: 8px;
+}
+.ci-edit-lbl {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgba(255,255,255,0.28); display: block; margin-bottom: 3px;
+}
+.ci-edit-ta {
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(120,200,64,0.3); border-radius: 7px;
+  padding: 8px 10px; font-size: 13px; color: rgba(255,255,255,0.88);
+  line-height: 1.5; resize: vertical; outline: none; font-family: inherit;
+  min-height: 60px;
+}
+.ci-edit-ta:focus { border-color: rgba(120,200,64,0.6); }
+.ci-edit-ta.muted { border-color: rgba(255,255,255,0.1); }
+.ci-edit-row { display: flex; gap: 6px; }
+.ci-edit-in {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
+  padding: 7px 10px; font-size: 12px; color: rgba(255,255,255,0.85);
+  outline: none; font-family: inherit;
+}
+.ci-save-btn {
+  padding: 7px 16px; border-radius: 7px; border: none;
+  background: #78c840; color: #050505; font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.ci-save-btn:hover { background: #8fd84a; }
+.ci-cancel-btn {
+  padding: 7px 12px; border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.45); font-size: 12px; cursor: pointer; font-family: inherit;
+}
+
+/* ── Empty state ── */
+.cards-empty {
+  text-align: center; padding: 60px 20px;
+  color: rgba(255,255,255,0.2); font-size: 14px; line-height: 1.7;
+}
+.cards-empty-icon { font-size: 48px; display: block; margin-bottom: 14px; opacity: 0.5; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #111; border: 1px solid rgba(120,200,64,0.35); color: #78c840;
+  padding: 9px 18px; border-radius: 24px; font-size: 13px; font-weight: 600;
+  white-space: nowrap; animation: tin 0.25s ease-out; z-index: 999; pointer-events: none;
+}
+@keyframes tin {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Import overlay ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(5,5,5,0.88);
+  backdrop-filter: blur(6px); display: flex; align-items: center;
+  justify-content: center; z-index: 100; display: none;
+}
+.overlay.open { display: flex; }
+.overlay-box {
+  background: #111; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 28px; width: 480px; max-width: 95vw;
+}
+.overlay-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.overlay-desc { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.6; margin-bottom: 18px; }
+.overlay-ta {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+  padding: 11px 13px; font-size: 12px; color: rgba(255,255,255,0.8);
+  line-height: 1.5; resize: vertical; outline: none; font-family: monospace;
+  height: 160px; margin-bottom: 14px;
+}
+.overlay-ta:focus { border-color: rgba(120,200,64,0.4); }
+.overlay-btns { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 56 78" width="32" height="44" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <path d="M2,0 C38,8 34,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+      <path d="M7,0 C36,12 32,46 28,62" stroke="#a8e063" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M11,0 C28,16 28,44 28,62" stroke="#ffd600" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M15,0 C22,18 26,44 28,62" stroke="#ffc107" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M19,0 C20,22 26,46 28,62" stroke="#ff9800" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M22,0 C22,26 26,48 28,62" stroke="#ff5722" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M25,0 C24,30 26,50 28,62" stroke="#f44336" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="M28,0 C28,32 28,50 28,62" stroke="#e91e63" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="M31,0 C32,30 30,50 28,62" stroke="#ab47bc" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="M34,0 C36,26 30,48 28,62" stroke="#9b5fe0" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M37,0 C38,22 30,46 28,62" stroke="#2196f3" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M41,0 C40,18 30,44 28,62" stroke="#00bcd4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M45,0 C42,14 30,44 28,62" stroke="#00c9b1" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M49,0 C36,12 28,46 28,62" stroke="#4caf50" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M54,0 C18,8 22,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+      <polygon points="28,78 14,62 42,62" fill="#78c840"/>
+    </svg>
+    <div class="header-logo-text">
+      <div class="header-logo-name">Lifeline</div>
+      <div class="header-logo-sub">Medical Education</div>
+    </div>
+  </div>
+
+  <div class="header-title">✦ <span>Anki</span> Card Creator</div>
+
+  <div class="header-actions">
+    <button class="action-btn" id="btn-import">📂 Import .txt</button>
+    <button class="action-btn" id="btn-clear-all">🗑 Clear All</button>
+    <button class="action-btn green" id="btn-export">⬇ Export for Anki</button>
+  </div>
+</div>
+
+<!-- Rainbow stripe -->
+<div class="rainbow"></div>
+
+<!-- Main layout -->
+<div class="main">
+
+  <!-- ── LEFT: Editor ── -->
+  <div class="editor-panel">
+
+    <!-- Card type -->
+    <div>
+      <div class="section-lbl">Card Type</div>
+      <div class="type-row">
+        <button class="type-btn active" data-type="basic">Basic</button>
+        <button class="type-btn" data-type="basic-reverse">Basic + Reverse</button>
+        <button class="type-btn" data-type="cloze">Cloze</button>
+      </div>
+    </div>
+
+    <!-- Deck -->
+    <div>
+      <div class="section-lbl">Deck</div>
+      <div class="deck-row">
+        <input class="deck-input" id="deck-input" type="text"
+          placeholder="e.g. Step1::Cardiology::Heart Failure" />
+        <select class="deck-preset" id="deck-preset">
+          <option value="">Presets</option>
+          <optgroup label="Step 1">
+            <option value="Step1::Cardiology">Cardiology</option>
+            <option value="Step1::Renal">Renal</option>
+            <option value="Step1::Pulmonology">Pulmonology</option>
+            <option value="Step1::Neurology">Neurology</option>
+            <option value="Step1::GI">Gastroenterology</option>
+            <option value="Step1::Endocrine">Endocrine</option>
+            <option value="Step1::Hematology">Hematology</option>
+            <option value="Step1::Immunology">Immunology</option>
+            <option value="Step1::Microbiology">Microbiology</option>
+            <option value="Step1::Pharmacology">Pharmacology</option>
+            <option value="Step1::Biochemistry">Biochemistry</option>
+            <option value="Step1::Pathology">Pathology</option>
+            <option value="Step1::Anatomy">Anatomy</option>
+          </optgroup>
+          <optgroup label="Step 2 CK">
+            <option value="Step2::Internal Medicine">Internal Medicine</option>
+            <option value="Step2::Surgery">Surgery</option>
+            <option value="Step2::Pediatrics">Pediatrics</option>
+            <option value="Step2::OB-GYN">OB/GYN</option>
+            <option value="Step2::Psychiatry">Psychiatry</option>
+            <option value="Step2::Emergency">Emergency Medicine</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <!-- Front editor -->
+    <div class="editor-wrap" id="front-wrap">
+      <div class="section-lbl" id="front-label">Front (Question)</div>
+      <div class="toolbar" id="front-toolbar">
+        <button class="tb-btn" title="Bold" onclick="fmt('bold')"><b>B</b></button>
+        <button class="tb-btn" title="Italic" onclick="fmt('italic')"><i>I</i></button>
+        <button class="tb-btn" title="Underline" onclick="fmt('underline')"><u>U</u></button>
+        <button class="tb-btn" title="Strikethrough" onclick="fmt('strikeThrough')"><s>S</s></button>
+        <div class="tb-divider"></div>
+        <button class="tb-btn" title="Code" onclick="wrapCode()"><code style="font-size:11px">&lt;/&gt;</code></button>
+        <button class="tb-btn" title="Ordered list" onclick="fmt('insertOrderedList')">1.</button>
+        <button class="tb-btn" title="Unordered list" onclick="fmt('insertUnorderedList')">•</button>
+        <div class="tb-divider" id="cloze-divider" style="display:none"></div>
+        <button class="tb-cloze tb-c1" id="cloze-c1" style="display:none" title="Wrap in cloze 1" onclick="wrapCloze(1)">[c1]</button>
+        <button class="tb-cloze tb-c2" id="cloze-c2" style="display:none" title="Wrap in cloze 2" onclick="wrapCloze(2)">[c2]</button>
+        <button class="tb-cloze tb-c3" id="cloze-c3" style="display:none" title="Wrap in cloze 3" onclick="wrapCloze(3)">[c3]</button>
+      </div>
+      <div class="editor" id="front-editor" contenteditable="true"
+        data-placeholder="Type your question or cloze text here…"></div>
+    </div>
+
+    <!-- Back editor (hidden for cloze) -->
+    <div class="editor-wrap" id="back-wrap">
+      <div class="section-lbl">Back (Answer)</div>
+      <div class="toolbar" id="back-toolbar">
+        <button class="tb-btn" title="Bold" onclick="fmt('bold','back')"><b>B</b></button>
+        <button class="tb-btn" title="Italic" onclick="fmt('italic','back')"><i>I</i></button>
+        <button class="tb-btn" title="Underline" onclick="fmt('underline','back')"><u>U</u></button>
+        <button class="tb-btn" title="Strikethrough" onclick="fmt('strikeThrough','back')"><s>S</s></button>
+        <div class="tb-divider"></div>
+        <button class="tb-btn" title="Code" onclick="wrapCode('back')"><code style="font-size:11px">&lt;/&gt;</code></button>
+        <button class="tb-btn" title="Ordered list" onclick="fmt('insertOrderedList','back')">1.</button>
+        <button class="tb-btn" title="Unordered list" onclick="fmt('insertUnorderedList','back')">•</button>
+      </div>
+      <div class="editor" id="back-editor" contenteditable="true"
+        data-placeholder="Type the answer, explanation, or extra info…"></div>
+    </div>
+
+    <!-- Tags -->
+    <div>
+      <div class="section-lbl">Tags</div>
+      <div class="tags-wrap" id="tags-wrap" onclick="document.getElementById('tag-input').focus()">
+        <input class="tag-input" id="tag-input" type="text"
+          placeholder="Type tag then press Enter or comma…" autocomplete="off" />
+      </div>
+    </div>
+
+    <!-- Add button -->
+    <button class="add-btn" id="add-btn">+ Add Card</button>
+
+    <!-- Card counter hint -->
+    <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.2);" id="count-hint">
+      No cards yet — add your first one above
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT: Card List ── -->
+  <div class="cards-panel">
+    <div class="cards-header">
+      <div class="cards-count" id="cards-count">MY CARDS (0)</div>
+      <div style="display:flex;gap:8px;">
+        <button class="action-btn" id="sort-btn" title="Sort by deck">⇅ Sort</button>
+      </div>
+    </div>
+    <div id="card-list">
+      <div class="cards-empty">
+        <span class="cards-empty-icon">🃏</span>
+        Cards you create will appear here.<br>
+        Add your first card using the editor on the left.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import overlay -->
+<div class="overlay" id="import-overlay">
+  <div class="overlay-box">
+    <div class="overlay-title">📂 Import Cards</div>
+    <div class="overlay-desc">
+      Paste tab-separated card data below (Anki .txt format).<br>
+      Expected columns: <code style="color:#78c840;font-size:12px;">Front · Back · Tags · Deck · NoteType</code><br>
+      You can also drag and drop a .txt file onto this window.
+    </div>
+    <textarea class="overlay-ta" id="import-ta"
+      placeholder="#separator:tab&#10;Front text&#9;Back text&#9;tag1 tag2&#9;Step1::Cardiology&#9;Basic"></textarea>
+    <div class="overlay-btns">
+      <button class="ci-cancel-btn" id="import-cancel">Cancel</button>
+      <button class="ci-save-btn" id="import-go">Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let cards = [];
+let currentType = 'basic';
+let lastFocusedEditor = 'front';
+let sortAsc = false;
+
+// Load saved cards from storage
+try {
+  const saved = localStorage.getItem('ll_manual_cards');
+  if (saved) cards = JSON.parse(saved);
+} catch {}
+renderCards();
+
+// ── Card type switching ───────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+
+    const isCloze = currentType === 'cloze';
+    document.getElementById('back-wrap').style.display = isCloze ? 'none' : '';
+    document.getElementById('front-label').textContent = isCloze ? 'Cloze Text (use [c1] [c2] buttons)' : 'Front (Question)';
+    document.getElementById('front-editor').dataset.placeholder = isCloze
+      ? 'Type your sentence, then select a word and click [c1] to blank it…'
+      : 'Type your question or prompt here…';
+    // Show/hide cloze buttons
+    ['cloze-divider','cloze-c1','cloze-c2','cloze-c3'].forEach(id => {
+      document.getElementById(id).style.display = isCloze ? '' : 'none';
+    });
+  });
+});
+
+// ── Deck preset ───────────────────────────────────────────────────────────────
+document.getElementById('deck-preset').addEventListener('change', (e) => {
+  if (e.target.value) {
+    document.getElementById('deck-input').value = e.target.value;
+    e.target.value = '';
+  }
+});
+
+// ── Track last focused editor (for toolbar commands) ─────────────────────────
+document.getElementById('front-editor').addEventListener('focus', () => { lastFocusedEditor = 'front'; });
+document.getElementById('back-editor').addEventListener('focus',  () => { lastFocusedEditor = 'back'; });
+
+// ── Formatting commands ───────────────────────────────────────────────────────
+function fmt(cmd, target) {
+  const ed = document.getElementById(target === 'back' ? 'back-editor' : 'front-editor');
+  ed.focus();
+  document.execCommand(cmd, false, null);
+}
+
+function wrapCode(target) {
+  const ed = document.getElementById(target === 'back' ? 'back-editor' : 'front-editor');
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const code = document.createElement('code');
+  try { range.surroundContents(code); } catch { document.execCommand('insertHTML', false, `<code>${sel.toString()}</code>`); }
+}
+
+// ── Cloze wrapping ─────────────────────────────────────────────────────────────
+function wrapCloze(n) {
+  const ed = document.getElementById('front-editor');
+  ed.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const selected = sel.toString();
+  if (!selected) { showToast('Select some text first, then click [c' + n + ']'); return; }
+  const span = document.createElement('span');
+  span.className = `cloze-c${n}`;
+  span.textContent = `{{c${n}::${selected}}}`;
+  try {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(span);
+  } catch {
+    document.execCommand('insertHTML', false, `<span class="cloze-c${n}">{{c${n}::${selected}}}</span>`);
+  }
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+let currentTags = [];
+
+document.getElementById('tag-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    addTag(e.target.value.trim().replace(/,/g,''));
+    e.target.value = '';
+  } else if (e.key === 'Backspace' && !e.target.value && currentTags.length) {
+    removeTag(currentTags.length - 1);
+  }
+});
+
+function addTag(t) {
+  if (!t || currentTags.includes(t)) return;
+  currentTags.push(t);
+  renderTags();
+}
+function removeTag(i) {
+  currentTags.splice(i, 1);
+  renderTags();
+}
+function renderTags() {
+  const wrap = document.getElementById('tags-wrap');
+  const input = document.getElementById('tag-input');
+  wrap.innerHTML = '';
+  currentTags.forEach((t, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'tag-pill';
+    pill.innerHTML = `<span>${escHtml(t)}</span><button onclick="removeTag(${i})">×</button>`;
+    wrap.appendChild(pill);
+  });
+  wrap.appendChild(input);
+  input.focus();
+}
+
+// ── Add card ──────────────────────────────────────────────────────────────────
+document.getElementById('add-btn').addEventListener('click', addCard);
+
+function addCard() {
+  const frontEl = document.getElementById('front-editor');
+  const backEl  = document.getElementById('back-editor');
+  const front = frontEl.innerHTML.trim();
+  const back  = backEl.innerHTML.trim();
+  const deck  = document.getElementById('deck-input').value.trim() || 'Lifeline Recall';
+
+  if (!front || front === '') { showToast('Please enter the front / question'); frontEl.focus(); return; }
+  if (currentType !== 'cloze' && !back) { showToast('Please enter the back / answer'); backEl.focus(); return; }
+
+  // Finish any pending tag
+  const tagInput = document.getElementById('tag-input');
+  if (tagInput.value.trim()) addTag(tagInput.value.trim());
+  tagInput.value = '';
+
+  const card = {
+    id: Date.now(),
+    type: currentType,
+    front,
+    back: currentType === 'cloze' ? '' : back,
+    tags: [...currentTags],
+    deck,
+  };
+  cards.push(card);
+  save();
+  renderCards();
+
+  // Reset editor
+  frontEl.innerHTML = '';
+  backEl.innerHTML = '';
+  currentTags = [];
+  renderTags();
+  frontEl.focus();
+  showToast('✓ Card added');
+}
+
+// ── Render card list ───────────────────────────────────────────────────────────
+function renderCards() {
+  const list = document.getElementById('card-list');
+  const count = document.getElementById('cards-count');
+  const hint  = document.getElementById('count-hint');
+
+  count.textContent = `MY CARDS (${cards.length})`;
+  hint.textContent = cards.length
+    ? `${cards.length} card${cards.length !== 1 ? 's' : ''} — export to import into Anki`
+    : 'No cards yet — add your first one above';
+
+  if (!cards.length) {
+    list.innerHTML = `<div class="cards-empty"><span class="cards-empty-icon">🃏</span>Cards you create will appear here.<br>Add your first card using the editor on the left.</div>`;
+    return;
+  }
+
+  const displayed = sortAsc
+    ? [...cards].sort((a,b) => a.deck.localeCompare(b.deck))
+    : [...cards].reverse();
+
+  list.innerHTML = '';
+  displayed.forEach(card => {
+    const el = document.createElement('div');
+    el.className = 'card-item';
+    el.dataset.id = card.id;
+    el.innerHTML = buildCardItemHTML(card);
+    list.appendChild(el);
+  });
+}
+
+function buildCardItemHTML(card) {
+  const typeLabel = { basic:'Basic', 'basic-reverse':'Basic + Reverse', cloze:'Cloze' }[card.type] || card.type;
+  const frontText = card.front.replace(/<[^>]+>/g,'').slice(0,120);
+  const backText  = card.back ? card.back.replace(/<[^>]+>/g,'').slice(0,80) : '';
+  const tagsHtml  = card.tags.map(t => `<span class="ci-tag">${escHtml(t)}</span>`).join('');
+
+  return `
+    <div class="card-item-header">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="card-item-type">${typeLabel}</span>
+        <span class="card-item-deck">${escHtml(card.deck)}</span>
+      </div>
+      <div class="card-item-btns">
+        <button class="ci-btn" onclick="editCardInline(${card.id})">✏ Edit</button>
+        <button class="ci-btn del" onclick="deleteCard(${card.id})">✕</button>
+      </div>
+    </div>
+    <div class="card-item-front">${frontText}${card.front.length > 120 ? '…' : ''}</div>
+    ${backText ? `<div class="card-item-back">${backText}${card.back.length > 80 ? '…' : ''}</div>` : ''}
+    ${card.tags.length ? `<div class="card-item-tags">${tagsHtml}</div>` : ''}
+  `;
+}
+
+// ── Inline edit ───────────────────────────────────────────────────────────────
+function editCardInline(id) {
+  const card = cards.find(c => c.id === id);
+  if (!card) return;
+  const el = document.querySelector(`.card-item[data-id="${id}"]`);
+  if (!el) return;
+
+  const isCloze = card.type === 'cloze';
+  el.innerHTML = `
+    <div class="card-item-header">
+      <span class="card-item-type" style="color:#78c840;">✏ Editing</span>
+      <div class="card-item-btns">
+        <button class="ci-btn" onclick="cancelEdit(${id})">Cancel</button>
+        <button class="ci-btn edit-active" onclick="saveEdit(${id})">✓ Save</button>
+      </div>
+    </div>
+    <div class="card-item-edit">
+      <div>
+        <span class="ci-edit-lbl">${isCloze ? 'Cloze Text' : 'Front'}</span>
+        <textarea class="ci-edit-ta" id="ei-front-${id}" rows="3"></textarea>
+      </div>
+      ${!isCloze ? `<div>
+        <span class="ci-edit-lbl">Back</span>
+        <textarea class="ci-edit-ta muted" id="ei-back-${id}" rows="3"></textarea>
+      </div>` : ''}
+      <div>
+        <span class="ci-edit-lbl">Clinical Pearl / Extra</span>
+        <textarea class="ci-edit-ta muted" id="ei-extra-${id}" rows="2" placeholder="Optional extra info for Anki back side…"></textarea>
+      </div>
+      <div class="ci-edit-row">
+        <input class="ci-edit-in" id="ei-tags-${id}" type="text" placeholder="Tags (space-separated)" />
+        <input class="ci-edit-in" id="ei-deck-${id}" type="text" placeholder="Deck" style="max-width:180px;" />
+      </div>
+    </div>
+  `;
+
+  // Set values
+  const frontText = card.front.replace(/<[^>]+>/g,'');
+  const backText  = card.back ? card.back.replace(/<[^>]+>/g,'') : '';
+  document.getElementById(`ei-front-${id}`).value = frontText;
+  if (!isCloze && document.getElementById(`ei-back-${id}`))
+    document.getElementById(`ei-back-${id}`).value = backText;
+  document.getElementById(`ei-tags-${id}`).value  = card.tags.join(' ');
+  document.getElementById(`ei-deck-${id}`).value  = card.deck;
+  document.getElementById(`ei-front-${id}`).focus();
+}
+
+function saveEdit(id) {
+  const card = cards.find(c => c.id === id);
+  if (!card) return;
+  const isCloze = card.type === 'cloze';
+
+  const newFront = (document.getElementById(`ei-front-${id}`)?.value || '').trim();
+  if (!newFront) { showToast('Front cannot be empty'); return; }
+
+  card.front = newFront;
+  if (!isCloze) card.back = (document.getElementById(`ei-back-${id}`)?.value || '').trim();
+  card.tags = (document.getElementById(`ei-tags-${id}`)?.value || '').split(/[\s,]+/).filter(Boolean);
+  card.deck = (document.getElementById(`ei-deck-${id}`)?.value || '').trim() || card.deck;
+
+  save();
+  renderCards();
+  showToast('✓ Card updated');
+}
+
+function cancelEdit(id) { renderCards(); }
+
+function deleteCard(id) {
+  cards = cards.filter(c => c.id !== id);
+  save();
+  renderCards();
+  showToast('Card deleted');
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+document.getElementById('sort-btn').addEventListener('click', () => {
+  sortAsc = !sortAsc;
+  renderCards();
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click', exportCards);
+
+function exportCards() {
+  if (!cards.length) { showToast('No cards to export'); return; }
+
+  const lines = [
+    '#separator:tab',
+    '#html:true',
+    '#tags column:3',
+    '#deck column:4',
+    '#notetype column:5',
+    '',
+  ];
+
+  cards.forEach(card => {
+    const front = card.front.replace(/\t|\n/g, ' ');
+    const back  = card.back.replace(/\t|\n/g, ' ');
+    const tags  = card.tags.join(' ');
+    const deck  = card.deck;
+    const ntype = card.type === 'cloze'
+      ? 'Cloze'
+      : card.type === 'basic-reverse'
+        ? 'Basic (and reversed card)'
+        : 'Basic';
+    lines.push(`${front}\t${back}\t${tags}\t${deck}\t${ntype}`);
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `lifeline-anki-${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  showToast(`✓ Exported ${cards.length} cards — import via Anki → File → Import`);
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('import-overlay').classList.add('open');
+});
+document.getElementById('import-cancel').addEventListener('click', () => {
+  document.getElementById('import-overlay').classList.remove('open');
+  document.getElementById('import-ta').value = '';
+});
+document.getElementById('import-go').addEventListener('click', () => {
+  const raw = document.getElementById('import-ta').value.trim();
+  const imported = parseImport(raw);
+  if (!imported.length) { showToast('No valid cards found in that text'); return; }
+  cards = [...cards, ...imported];
+  save();
+  renderCards();
+  document.getElementById('import-overlay').classList.remove('open');
+  document.getElementById('import-ta').value = '';
+  showToast(`✓ Imported ${imported.length} cards`);
+});
+
+// Support file drop on the overlay
+document.getElementById('import-overlay').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('import-overlay').addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { document.getElementById('import-ta').value = ev.target.result; };
+  reader.readAsText(file);
+});
+
+function parseImport(raw) {
+  const lines = raw.split('\n').filter(l => l && !l.startsWith('#'));
+  return lines.map(line => {
+    const cols = line.split('\t');
+    if (cols.length < 1) return null;
+    const front = (cols[0] || '').trim();
+    if (!front) return null;
+    const back  = (cols[1] || '').trim();
+    const tags  = (cols[2] || '').trim().split(/\s+/).filter(Boolean);
+    const deck  = (cols[3] || 'Lifeline Recall').trim();
+    const ntype = (cols[4] || 'Basic').trim().toLowerCase();
+    const type  = ntype.includes('cloze') ? 'cloze'
+                : ntype.includes('reverse') ? 'basic-reverse'
+                : 'basic';
+    return { id: Date.now() + Math.random(), type, front, back, tags, deck };
+  }).filter(Boolean);
+}
+
+// ── Clear all ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-clear-all').addEventListener('click', () => {
+  if (!cards.length) { showToast('Nothing to clear'); return; }
+  if (!confirm(`Delete all ${cards.length} cards? This cannot be undone.`)) return;
+  cards = [];
+  save();
+  renderCards();
+  showToast('All cards cleared');
+});
+
+// ── Keyboard shortcut — Ctrl/Cmd+Enter to add card ────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    addCard();
+  }
+});
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function save() {
+  try { localStorage.setItem('ll_manual_cards', JSON.stringify(cards)); } catch {}
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), 2800);
+}
+</script>
+</body>
+</html>

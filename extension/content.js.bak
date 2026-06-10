@@ -1,0 +1,1044 @@
+/**
+ * Lifeline Recall — Content Script v3.0
+ * Clean, simple UI. Edit uses wrap.querySelector (not shadow.getElementById).
+ */
+
+(function () {
+  "use strict";
+
+  if (window.__lifelineRecallLoaded) return;
+  window.__lifelineRecallLoaded = true;
+
+  let selectedText      = "";
+  let sidebarOpen       = false;
+  let generatedCards    = [];
+  let isGenerating      = false;
+  let currentSourceType = detectPageSourceType();
+
+  // ── Shadow DOM ────────────────────────────────────────────────────────────────
+  const host = document.createElement("div");
+  host.id = "__lifeline-recall-root__";
+  host.style.cssText = "position:fixed;z-index:2147483647;top:0;left:0;width:0;height:0;pointer-events:none;";
+  document.documentElement.appendChild(host);
+  const shadow = host.attachShadow({ mode: "open" });
+
+  // ── Styles ────────────────────────────────────────────────────────────────────
+  // Brand palette: pure black, rainbow spectrum, green #78c840 CTA
+  const style = document.createElement("style");
+  style.textContent = `
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Floating button ── */
+    #ll-btn {
+      position: fixed; display: none; align-items: center; gap: 8px;
+      padding: 9px 16px; background: #050505;
+      border: 1.5px solid #78c840; border-radius: 20px;
+      cursor: pointer; font-family: -apple-system, 'Segoe UI', sans-serif;
+      font-size: 13px; font-weight: 600; color: #78c840;
+      pointer-events: all !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 12px rgba(120,200,64,0.15);
+      transition: transform 0.12s, box-shadow 0.12s;
+      z-index: 2147483647; user-select: none;
+    }
+    #ll-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(0,0,0,0.55), 0 0 18px rgba(120,200,64,0.25); }
+    .ll-btn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #78c840; flex-shrink: 0;
+    }
+
+    /* ── Sidebar ── */
+    #ll-sidebar {
+      position: fixed; top: 0; right: 0; width: 400px; height: 100vh;
+      background: #050505;
+      border-left: 1px solid rgba(255,255,255,0.07);
+      display: flex; flex-direction: column;
+      pointer-events: all !important;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: -8px 0 48px rgba(0,0,0,0.6);
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      z-index: 2147483647;
+    }
+    #ll-sidebar.open { transform: translateX(0); }
+
+    /* Rainbow spectrum stripe — matches the logo strand colors */
+    .ll-rainbow {
+      height: 3px; width: 100%; flex-shrink: 0;
+      background: linear-gradient(90deg,
+        #9b5fe0 0%, #4f8ef7 12%, #00c9b1 24%, #4caf50 36%,
+        #a8e063 48%, #ffc107 60%, #ff9800 72%, #f44336 84%, #e91e63 100%);
+    }
+
+    /* API key setup card */
+    .ll-setup-card {
+      background: #111; border: 1px solid rgba(120,200,64,0.2);
+      border-radius: 12px; padding: 16px; text-align: center;
+    }
+    .ll-setup-card h3 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .ll-setup-card p { font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.5; margin-bottom: 14px; }
+    .ll-setup-card a { color: #78c840; text-decoration: none; }
+    .ll-setup-card a:hover { text-decoration: underline; }
+
+    /* ── Header ── */
+    .ll-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 15px 18px 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0; background: #080808;
+    }
+    .ll-logo { display: flex; align-items: center; gap: 10px; }
+    .ll-logo-icon { width: 34px; height: 34px; flex-shrink: 0; }
+    .ll-logo-text { display: flex; flex-direction: column; }
+    .ll-logo-name {
+      font-size: 14px; font-weight: 800; color: #fff;
+      letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.15;
+    }
+    .ll-logo-sub {
+      font-size: 8px; font-weight: 600; color: rgba(255,255,255,0.4);
+      letter-spacing: 0.15em; text-transform: uppercase;
+    }
+    .ll-close {
+      width: 30px; height: 30px; border: none; background: rgba(255,255,255,0.05);
+      border-radius: 7px; cursor: pointer; color: rgba(255,255,255,0.4);
+      font-size: 15px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; pointer-events: all !important; font-family: inherit;
+    }
+    .ll-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ── Body ── */
+    .ll-body {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px; background: #050505;
+    }
+    .ll-body::-webkit-scrollbar { width: 4px; }
+    .ll-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    /* ── Textarea / input ── */
+    .ll-textarea {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      padding: 11px 13px; font-size: 13px; color: rgba(255,255,255,0.85);
+      line-height: 1.6; resize: vertical; min-height: 70px; max-height: 150px;
+      outline: none; font-family: inherit; transition: border-color 0.2s;
+    }
+    .ll-textarea:focus { border-color: rgba(120,200,64,0.5); }
+
+    /* ── Label ── */
+    .ll-lbl {
+      font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35);
+      display: block; margin-bottom: 6px;
+    }
+
+    /* ── Generate button ── */
+    .ll-gen {
+      width: 100%; padding: 13px; border-radius: 10px; border: none;
+      background: #78c840; color: #021533; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s; pointer-events: all !important;
+      font-family: inherit; letter-spacing: 0.01em;
+    }
+    .ll-gen:hover:not(:disabled) { background: #8fd84a; }
+    .ll-gen:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ll-spin {
+      width: 14px; height: 14px; border: 2px solid rgba(2,21,51,0.3);
+      border-top-color: #021533; border-radius: 50%;
+      animation: _spin 0.7s linear infinite; display: inline-block; vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes _spin { to { transform: rotate(360deg); } }
+
+    /* ── Card count label ── */
+    .ll-count {
+      font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 600;
+      padding: 2px 0 4px; letter-spacing: 0.02em;
+    }
+
+    /* ── Card ── */
+    .ll-card {
+      background: #111111; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.07);
+      overflow: hidden; transition: border-color 0.15s;
+    }
+    .ll-card:hover { border-color: rgba(120,200,64,0.2); }
+
+    .ll-card-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px 0;
+    }
+    .ll-card-tag {
+      font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.28);
+      text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .ll-card-actions { display: flex; gap: 6px; }
+    .ll-card-btn {
+      padding: 4px 11px; border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.45);
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+      font-family: inherit; pointer-events: all !important;
+    }
+    .ll-card-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.18); }
+    .ll-card-btn.edit { color: rgba(120,200,64,0.8); border-color: rgba(120,200,64,0.2); background: rgba(120,200,64,0.06); }
+    .ll-card-btn.edit:hover { background: rgba(120,200,64,0.14); color: #78c840; }
+    .ll-card-btn.save { color: rgba(255,255,255,0.5); }
+    .ll-card-btn.save:hover { color: #78c840; border-color: rgba(120,200,64,0.25); }
+    .ll-card-btn.saved { color: rgba(120,200,64,0.45); cursor: default; }
+    .ll-card-btn.cancel { color: rgba(248,113,113,0.7); border-color: rgba(248,113,113,0.15); }
+    .ll-card-btn.cancel:hover { background: rgba(248,113,113,0.1); }
+    .ll-card-btn.save-edit { color: #78c840; border-color: rgba(120,200,64,0.35); background: rgba(120,200,64,0.08); }
+    .ll-card-btn.save-edit:hover { background: rgba(120,200,64,0.18); }
+
+    .ll-card-q {
+      padding: 10px 14px 6px;
+      font-size: 14px; color: rgba(255,255,255,0.88); font-weight: 500; line-height: 1.6;
+    }
+    .ll-card-reveal {
+      padding: 4px 14px 8px;
+      font-size: 11px; color: rgba(255,255,255,0.22);
+      cursor: pointer; user-select: none; pointer-events: all !important;
+      transition: color 0.15s;
+    }
+    .ll-card-reveal:hover { color: rgba(120,200,64,0.7); }
+    .ll-card-a {
+      font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.65;
+      border-top: 1px solid rgba(255,255,255,0.06); margin: 0 14px;
+      padding: 10px 0 12px;
+      display: none;
+    }
+    .ll-card-a.visible { display: block; }
+    .ll-pearl-txt {
+      margin-top: 8px; padding: 8px 10px;
+      background: rgba(120,200,64,0.06); border-left: 2px solid rgba(120,200,64,0.35);
+      border-radius: 0 6px 6px 0;
+      font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.5;
+    }
+    .ll-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px 12px; }
+    .ll-tag {
+      font-size: 9px; padding: 2px 8px; border-radius: 5px;
+      background: rgba(120,200,64,0.07); border: 1px solid rgba(120,200,64,0.15);
+      color: rgba(120,200,64,0.6); font-weight: 600;
+    }
+
+    /* ── Inline edit fields ── */
+    .ll-edit-field { padding: 10px 14px 0; }
+    .ll-edit-lbl {
+      font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.3);
+      text-transform: uppercase; letter-spacing: 0.09em; display: block; margin-bottom: 5px;
+    }
+    .ll-edit-ta {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(120,200,64,0.35); border-radius: 8px;
+      padding: 8px 10px; font-size: 13px; color: rgba(255,255,255,0.88);
+      line-height: 1.5; resize: vertical; outline: none; font-family: inherit;
+    }
+    .ll-edit-ta:focus { border-color: rgba(120,200,64,0.65); background: rgba(120,200,64,0.03); }
+    .ll-edit-ta.muted { border-color: rgba(255,255,255,0.1); }
+    .ll-edit-ta.muted:focus { border-color: rgba(255,255,255,0.25); background: none; }
+    .ll-edit-in {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      padding: 7px 10px; font-size: 12px; color: rgba(255,255,255,0.85);
+      outline: none; font-family: inherit;
+    }
+    .ll-edit-in:focus { border-color: rgba(120,200,64,0.4); }
+    .ll-edit-gap { height: 12px; }
+
+    /* ── Bottom buttons ── */
+    .ll-btn-row { display: flex; gap: 8px; }
+    .ll-btn-green {
+      flex: 1; padding: 11px; border-radius: 10px;
+      border: 1.5px solid rgba(120,200,64,0.35); background: rgba(120,200,64,0.1);
+      color: #78c840; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      pointer-events: all !important;
+    }
+    .ll-btn-green:hover { background: rgba(120,200,64,0.2); }
+    .ll-btn-amber {
+      flex: 1; padding: 11px; border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      pointer-events: all !important;
+    }
+    .ll-btn-amber:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+    /* ── Ask AI ── */
+    .ll-ask {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 14px 16px; flex-shrink: 0; display: none; background: #050505;
+    }
+    .ll-ask-lbl {
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3);
+      margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .ll-ask-row { display: flex; gap: 8px; align-items: flex-end; }
+    .ll-ask-ta {
+      flex: 1; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09); border-radius: 9px;
+      padding: 8px 11px; font-size: 12px; color: rgba(255,255,255,0.85);
+      outline: none; font-family: inherit; resize: none; line-height: 1.45;
+      transition: border-color 0.2s;
+    }
+    .ll-ask-ta:focus { border-color: rgba(120,200,64,0.4); }
+    .ll-ask-go {
+      padding: 8px 14px; border-radius: 9px; border: none;
+      background: #78c840; color: #021533;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: background 0.15s; pointer-events: all !important;
+      white-space: nowrap;
+    }
+    .ll-ask-go:hover { background: #8fd84a; }
+    .ll-ask-go:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ll-ask-ans {
+      margin-top: 9px; padding: 10px 12px; background: rgba(120,200,64,0.05);
+      border: 1px solid rgba(120,200,64,0.15); border-radius: 9px;
+      font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.6; display: none;
+    }
+    .ll-ask-err { color: rgba(248,113,113,0.8); border-color: rgba(248,113,113,0.18); background: rgba(248,113,113,0.05); }
+
+    /* ── Footer ── */
+    .ll-ftr {
+      padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0; background: #080808;
+    }
+    .ll-ftr-link {
+      font-size: 11px; color: rgba(255,255,255,0.18); cursor: pointer;
+      background: none; border: none; font-family: inherit; transition: color 0.15s;
+      pointer-events: all !important;
+    }
+    .ll-ftr-link:hover { color: rgba(120,200,64,0.7); }
+    .ll-ftr-badge { font-size: 11px; color: rgba(120,200,64,0.5); font-weight: 600; }
+
+    /* ── Empty / success states ── */
+    .ll-empty {
+      text-align: center; padding: 40px 16px;
+      color: rgba(255,255,255,0.28); font-size: 13px; line-height: 1.7;
+    }
+    .ll-empty-icon { font-size: 36px; display: block; margin-bottom: 12px; }
+    .ll-success {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; padding: 32px 16px; gap: 10px;
+    }
+    .ll-success-icon { font-size: 40px; }
+    .ll-success-title { font-size: 18px; font-weight: 700; color: #fff; }
+    .ll-success-sub { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+    .ll-open-btn {
+      padding: 10px 22px; border-radius: 10px; background: #78c840;
+      color: #021533; font-size: 13px; font-weight: 700;
+      border: none; cursor: pointer; font-family: inherit; pointer-events: all !important;
+    }
+    .ll-open-btn:hover { background: #8fd84a; }
+    .ll-new-btn {
+      padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08);
+      background: none; color: rgba(255,255,255,0.3); font-size: 12px;
+      cursor: pointer; font-family: inherit; pointer-events: all !important;
+    }
+    .ll-new-btn:hover { color: #fff; }
+  `;
+  shadow.appendChild(style);
+
+  // ── Floating button ────────────────────────────────────────────────────────────
+  const btn = document.createElement("div");
+  btn.id = "ll-btn";
+  btn.innerHTML = `<div class="ll-btn-dot"></div><span>Capture with Lifeline</span>`;
+  shadow.appendChild(btn);
+
+  // ── Sidebar ───────────────────────────────────────────────────────────────────
+  const sidebar = document.createElement("div");
+  sidebar.id = "ll-sidebar";
+  sidebar.innerHTML = `
+    <div class="ll-hdr">
+      <div class="ll-logo">
+        <svg class="ll-logo-icon" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 1 C7 7 10 14 17 26" stroke="#9b5fe0" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M8 0 C9 6 11 13 17 26" stroke="#00c9b1" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M10 0 C11 6 12 13 17 26" stroke="#4caf50" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M12 0 C13 6 14 13 17 26" stroke="#ff9800" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M14 0 C14 6 15 13 17 26" stroke="#ffc107" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M17 0 C17 6 17 13 17 26" stroke="#f44336" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M20 0 C19 6 19 13 17 26" stroke="#ff5722" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M22 0 C21 6 20 13 17 26" stroke="#2196f3" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M24 0 C23 6 22 13 17 26" stroke="#00c9b1" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M26 1 C24 7 22 14 17 26" stroke="#9b5fe0" stroke-width="1.6" stroke-linecap="round"/>
+          <polygon points="17,42 11,28 23,28" fill="#78c840"/>
+        </svg>
+        <div class="ll-logo-text">
+          <div class="ll-logo-name">Lifeline</div>
+          <div class="ll-logo-sub">Medical Education</div>
+        </div>
+      </div>
+      <button class="ll-close" id="ll-close">✕</button>
+    </div>
+    <div class="ll-rainbow"></div>
+    <div class="ll-body" id="ll-body">
+      <div class="ll-empty">
+        <span class="ll-empty-icon">📖</span>
+        <strong style="color:rgba(255,255,255,0.6);display:block;margin-bottom:8px;">Highlight any text to get started</strong>
+        Select a passage on any page and click the Lifeline button to generate flashcards instantly.
+      </div>
+    </div>
+    <div class="ll-ask" id="ll-ask-panel">
+      <span class="ll-ask-lbl">🤖 Ask AI about this content</span>
+      <div class="ll-ask-row">
+        <textarea class="ll-ask-ta" id="ll-ask-input" rows="2" placeholder="e.g. What is the mechanism? What drug treats this?"></textarea>
+        <button class="ll-ask-go" id="ll-ask-btn">Ask</button>
+      </div>
+      <div class="ll-ask-ans" id="ll-ask-ans"></div>
+    </div>
+    <div class="ll-ftr">
+      <button class="ll-ftr-link" id="ll-open-lf">Open Lifeline →</button>
+      <div class="ll-ftr-badge" id="ll-badge"></div>
+    </div>
+  `;
+  shadow.appendChild(sidebar);
+
+  // ── Static listeners ───────────────────────────────────────────────────────────
+  shadow.getElementById("ll-close").addEventListener("click", closeSidebar);
+  shadow.getElementById("ll-open-lf").addEventListener("click", () => chrome.runtime.sendMessage({ type: "OPEN_LIFELINE" }));
+  shadow.getElementById("ll-ask-btn").addEventListener("click", handleAskAI);
+  shadow.getElementById("ll-ask-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskAI(); }
+  });
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (selectedText) { openSidebarWithText(selectedText); hideBtn(); }
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (inShadow(e.target)) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const text = sel ? sel.toString().trim() : "";
+      if (text.length >= 30) { selectedText = text; showBtn(sel); }
+      else if (!inShadow(e.target)) hideBtn();
+    }, 10);
+  });
+  document.addEventListener("mousedown", (e) => { if (!inShadow(e.target)) hideBtn(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sidebarOpen) closeSidebar(); });
+
+  // YouTube / cross-script bridge
+  window.addEventListener("__lifeline_open_sidebar__", (e) => {
+    const { text, sourceType } = (e && e.detail) || {};
+    if (text) { currentSourceType = sourceType || "video"; openSidebarWithText(text); }
+  });
+  document.addEventListener("__lifeline_from_youtube__", (e) => {
+    const { text, sourceType } = (e && e.detail) || {};
+    if (text) { currentSourceType = sourceType || "video"; openSidebarWithText(text); }
+  });
+
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "OPEN_SIDEBAR_WITH_TEXT") {
+      const { text, sourceType } = msg.payload || {};
+      if (sourceType) currentSourceType = sourceType;
+      openSidebarWithText(text);
+    }
+  });
+
+  loadBadge();
+
+  // ── Ask AI ────────────────────────────────────────────────────────────────────
+  function handleAskAI() {
+    const input  = shadow.getElementById("ll-ask-input");
+    const askBtn = shadow.getElementById("ll-ask-btn");
+    const ans    = shadow.getElementById("ll-ask-ans");
+    if (!input || !askBtn || !ans) return;
+    const question = (input.value || "").trim();
+    if (!question) return;
+
+    askBtn.disabled = true; askBtn.textContent = "…";
+    ans.className = "ll-ask-ans"; ans.style.display = "block";
+    ans.textContent = "Thinking…";
+
+    chrome.runtime.sendMessage(
+      { type: "ASK_AI_QUESTION", payload: { question, context: selectedText } },
+      (res) => {
+        askBtn.disabled = false; askBtn.textContent = "Ask";
+        if (chrome.runtime.lastError || !res) {
+          ans.className = "ll-ask-ans ll-ask-err";
+          ans.textContent = "⚠ Add an OpenAI key in the extension popup to use AI Q&A.";
+          return;
+        }
+        if (res.ok) {
+          ans.textContent = res.answer;
+        } else {
+          ans.className = "ll-ask-ans ll-ask-err";
+          ans.textContent = res.error?.includes("no_ai_key")
+            ? "⚠ Add an OpenAI key in the extension popup to use AI Q&A."
+            : "⚠ " + (res.error || "Could not get an answer — check your API key.");
+        }
+      }
+    );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function inShadow(el) { try { return shadow.contains(el) || el === host; } catch { return false; } }
+
+  function showBtn(sel) {
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0).getBoundingClientRect();
+    const top  = window.scrollY + r.top - 46;
+    const left = Math.min(window.scrollX + r.left + r.width / 2 - 110, window.innerWidth - 250);
+    btn.style.display = "flex";
+    btn.style.top  = `${Math.max(8, top)}px`;
+    btn.style.left = `${Math.max(8, left)}px`;
+  }
+  function hideBtn() { btn.style.display = "none"; }
+
+  function openSidebar() {
+    sidebar.classList.add("open"); sidebarOpen = true;
+    host.style.cssText = "position:fixed;z-index:2147483647;top:0;right:0;width:400px;height:100vh;pointer-events:auto;";
+  }
+  function closeSidebar() {
+    sidebar.classList.remove("open"); sidebarOpen = false; generatedCards = [];
+    setTimeout(() => {
+      host.style.cssText = "position:fixed;z-index:2147483647;top:0;left:0;width:0;height:0;pointer-events:none;";
+    }, 300);
+  }
+  function openSidebarWithText(text) {
+    selectedText = text;
+    renderCapture(text);
+    openSidebar();
+    const panel = shadow.getElementById("ll-ask-panel");
+    if (panel) panel.style.display = "block";
+  }
+
+  // ── Capture UI ────────────────────────────────────────────────────────────────
+  function renderCapture(text) {
+    shadow.getElementById("ll-body").innerHTML = `
+      <div>
+        <span class="ll-lbl">Captured text — edit if needed</span>
+        <textarea class="ll-textarea" id="ll-text-in" rows="5"></textarea>
+      </div>
+      <button class="ll-gen" id="ll-gen-btn">⚡ Generate Flashcards</button>
+      <div id="ll-cards-area"></div>
+    `;
+    shadow.getElementById("ll-text-in").value = text || "";
+    shadow.getElementById("ll-gen-btn").addEventListener("click", handleGenerate);
+  }
+
+  // ── Generate ──────────────────────────────────────────────────────────────────
+  async function handleGenerate() {
+    const textEl = shadow.getElementById("ll-text-in");
+    const genBtn = shadow.getElementById("ll-gen-btn");
+    const area   = shadow.getElementById("ll-cards-area");
+    const text   = textEl ? textEl.value.trim() : "";
+    if (!text || isGenerating) return;
+
+    isGenerating = true;
+    genBtn.disabled = true;
+    genBtn.innerHTML = `<span class="ll-spin"></span> Building cards…`;
+    area.innerHTML = "";
+
+    try {
+      const s = await getStorage();
+      const result = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { type: "GENERATE_CARDS_IN_BACKGROUND",
+            payload: { text, sourceType: currentSourceType,
+              apiUrl: s.apiUrl || "", authToken: s.authToken || "", userId: s.userId || "" } },
+          (res) => {
+            // chrome.runtime.lastError means the service worker wasn't reachable
+            if (chrome.runtime.lastError) {
+              reject(new Error("no_ai_key")); return;
+            }
+            // res undefined = service worker woke up but didn't respond properly
+            if (!res) {
+              reject(new Error("no_ai_key")); return;
+            }
+            if (res.ok) resolve(res.data);
+            else reject(new Error(res.error || "no_ai_key"));
+          }
+        );
+      });
+      generatedCards = (result.cards || []);
+      renderAllCards(area);
+    } catch (err) {
+      // Any error that isn't a specific API failure → show the key setup card
+      const isApiError = err.message && (
+        err.message.includes("401") ||
+        err.message.includes("429") ||
+        err.message.includes("API error")
+      );
+
+      if (isApiError) {
+        const msg401 = `
+          <strong style="color:#f87171;">Key rejected (401)</strong><br><br>
+          This usually means one of these:<br>
+          1. The key was copied incorrectly — re-paste it in the popup<br>
+          2. Your OpenAI account has no credits — add $5 at
+             <a href="https://platform.openai.com/settings/organization/billing" target="_blank" style="color:#78c840;">platform.openai.com/billing</a><br>
+          3. The key has been revoked — generate a new one at
+             <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#78c840;">platform.openai.com/api-keys</a>`;
+        const msg429 = `<strong style="color:#fbbf24;">Rate limit (429)</strong><br><br>You've hit your usage quota. Wait a moment or check your limits at <a href="https://platform.openai.com/usage" target="_blank" style="color:#78c840;">platform.openai.com/usage</a>`;
+        area.innerHTML = `
+          <div class="ll-setup-card">
+            <h3>⚠ OpenAI Error</h3>
+            <p style="text-align:left;line-height:1.7;">${err.message.includes("401") ? msg401 : err.message.includes("429") ? msg429 : err.message}</p>
+          </div>`;
+      } else {
+        // No key set (most common case) — show setup instructions
+        area.innerHTML = `
+          <div class="ll-setup-card">
+            <h3>🔑 Add your ChatGPT API key to generate cards</h3>
+            <p>Lifeline uses GPT-4o to create high-yield USMLE Step 1 & 2 flashcards from your highlighted text.</p>
+            <p style="margin-top:10px;">
+              <strong style="color:#78c840;">How to set up:</strong><br>
+              1. Click the <strong>L icon</strong> in your Chrome toolbar<br>
+              2. Paste your OpenAI key in the field shown<br>
+              3. Click <strong>Save OpenAI Key</strong><br>
+              4. Come back and click Generate again
+            </p>
+            <p style="margin-top:10px;font-size:11px;color:rgba(255,255,255,0.4);">
+              Get a free key at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#78c840;">platform.openai.com/api-keys</a>
+            </p>
+          </div>`;
+      }
+    } finally {
+      isGenerating = false;
+      genBtn.disabled = false;
+      genBtn.textContent = "⚡ Regenerate";
+    }
+  }
+
+  // ── Render cards ──────────────────────────────────────────────────────────────
+  function renderAllCards(container) {
+    if (!container) return;
+    if (!generatedCards.length) {
+      container.innerHTML = `<div class="ll-empty">No cards generated. Try selecting a longer passage.</div>`;
+      return;
+    }
+
+    container.innerHTML = "";
+
+    const count = document.createElement("div");
+    count.className = "ll-count";
+    count.textContent = `${generatedCards.length} cards generated`;
+    container.appendChild(count);
+
+    generatedCards.forEach((card, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "ll-card";
+      wrap.dataset.idx = String(i);
+      renderOneCard(wrap, card, i);
+      container.appendChild(wrap);
+    });
+
+    const row = document.createElement("div");
+    row.className = "ll-btn-row";
+    row.style.marginTop = "4px";
+
+    const ankiBtn = document.createElement("button");
+    ankiBtn.className = "ll-btn-amber";
+    ankiBtn.textContent = "📦 Export for Anki";
+    ankiBtn.addEventListener("click", exportToAnki);
+
+    const saveAllBtn = document.createElement("button");
+    saveAllBtn.className = "ll-btn-green";
+    saveAllBtn.textContent = "💾 Save to Lifeline";
+    saveAllBtn.addEventListener("click", handleSaveAll);
+
+    row.appendChild(ankiBtn);
+    row.appendChild(saveAllBtn);
+    container.appendChild(row);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // renderOneCard — uses wrap.querySelector (NOT shadow.getElementById)
+  // This is the definitive fix: wrap is not in the shadow DOM when this runs,
+  // so shadow.getElementById returns null. wrap.querySelector always works.
+  // ─────────────────────────────────────────────────────────────────────────────
+  function renderOneCard(wrap, card, i) {
+    const typeLabel = {
+      basic:"Q&A", cloze:"Fill-in-the-Blank", vignette:"Clinical Case",
+      workup:"Workup Steps", mnemonic:"Mnemonic", flowchart:"Algorithm", comparison:"Compare"
+    }[card.card_type] || card.card_type;
+
+    // Flatten all card types to a readable front + back
+    const front = getFront(card);
+    const back  = getBack(card);
+
+    wrap.innerHTML = `
+      <div class="ll-card-top">
+        <span class="ll-card-tag">${typeLabel}</span>
+        <div class="ll-card-actions">
+          <button class="ll-card-btn edit">✏ Edit</button>
+          <button class="ll-card-btn save">Save</button>
+        </div>
+      </div>
+      <div class="ll-card-q"></div>
+      <div class="ll-card-reveal">▶ Show answer</div>
+      <div class="ll-card-a">
+        <div class="ll-card-a-text"></div>
+        ${card.explanation ? `<div class="ll-pearl-txt">💡 ${esc(card.explanation)}</div>` : ""}
+      </div>
+      ${(card.tags||[]).length ? `<div class="ll-tags">${(card.tags||[]).slice(0,4).map(t=>`<span class="ll-tag">${esc(t)}</span>`).join("")}</div>` : ""}
+    `;
+
+    // Set text content safely (no innerHTML for user data)
+    wrap.querySelector(".ll-card-q").textContent = front;
+    const aText = wrap.querySelector(".ll-card-a-text");
+    if (aText) aText.textContent = back;
+
+    // ── Direct listeners — wrap.querySelector works even before DOM insertion ──
+    wrap.querySelector(".ll-card-btn.edit").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openInlineEdit(wrap, card, i);
+    });
+
+    wrap.querySelector(".ll-card-btn.save").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const sb = wrap.querySelector(".ll-card-btn.save");
+      saveSingle(i, sb);
+    });
+
+    wrap.querySelector(".ll-card-reveal").addEventListener("click", () => {
+      const a = wrap.querySelector(".ll-card-a");
+      const r = wrap.querySelector(".ll-card-reveal");
+      if (!a || !r) return;
+      const showing = a.classList.toggle("visible");
+      r.textContent = showing ? "▲ Hide answer" : "▶ Show answer";
+    });
+  }
+
+  function getFront(card) {
+    if (card.card_type === "cloze") return (card.cloze_text || card.front || "").replace(/\{\{c\d+::(.*?)\}\}/g, "[___]");
+    if (card.card_type === "vignette") return (card.stem || card.front || "") + (card.question ? "\n\n" + card.question : "");
+    return card.front || "";
+  }
+
+  function getBack(card) {
+    if (card.card_type === "cloze") {
+      return (card.cloze_text || "").replace(/\{\{c\d+::(.*?)\}\}/g, (_, m) => `→ ${m}`);
+    }
+    if (card.card_type === "vignette") return (card.answer_points || [card.back]).filter(Boolean).join("\n");
+    if (card.card_type === "workup") return (card.steps || []).map((s,n) => `${n+1}. ${s.action}`).join("\n");
+    if (card.card_type === "mnemonic") return (card.items || []).map(it => `${it.letter} — ${it.term}`).join("\n");
+    if (card.card_type === "flowchart") {
+      const fc = card.flowchart || {};
+      return [fc.start, ...(fc.steps||[]).map(s=>s.text||""), fc.end].filter(Boolean).join(" → ");
+    }
+    return card.back || "";
+  }
+
+  // ── Inline editing ────────────────────────────────────────────────────────────
+  function openInlineEdit(wrap, card, i) {
+    const isCloze = card.card_type === "cloze";
+    const frontVal = (isCloze ? (card.cloze_text || card.front) : card.front) || "";
+
+    wrap.innerHTML = `
+      <div class="ll-card-top">
+        <span class="ll-card-tag" style="color:#60a5fa;">✏ Editing</span>
+        <div class="ll-card-actions">
+          <button class="ll-card-btn cancel">✕ Cancel</button>
+          <button class="ll-card-btn save-edit">✓ Save</button>
+        </div>
+      </div>
+      <div class="ll-edit-field">
+        <span class="ll-edit-lbl">${isCloze ? "Cloze (use [blank] or {{c1::answer}})" : "Question"}</span>
+        <textarea class="ll-edit-ta" id="ef" rows="3"></textarea>
+      </div>
+      ${!isCloze ? `
+      <div class="ll-edit-field">
+        <span class="ll-edit-lbl">Answer</span>
+        <textarea class="ll-edit-ta muted" id="eb" rows="3"></textarea>
+      </div>` : ""}
+      <div class="ll-edit-field">
+        <span class="ll-edit-lbl">Clinical Pearl (optional)</span>
+        <textarea class="ll-edit-ta muted" id="ee" rows="2"></textarea>
+      </div>
+      <div class="ll-edit-field">
+        <span class="ll-edit-lbl">Tags</span>
+        <input class="ll-edit-in" id="et" type="text" placeholder="step1, cardiology, mechanism" />
+      </div>
+      <div class="ll-edit-gap"></div>
+    `;
+
+    // Set values directly — never put user data in template literals
+    wrap.querySelector("#ef").value = frontVal;
+    if (!isCloze && wrap.querySelector("#eb")) wrap.querySelector("#eb").value = card.back || "";
+    wrap.querySelector("#ee").value = card.explanation || "";
+    wrap.querySelector("#et").value = (card.tags || []).join(", ");
+
+    // Focus
+    setTimeout(() => { const f = wrap.querySelector("#ef"); if (f) f.focus(); }, 30);
+
+    // Cancel
+    wrap.querySelector(".ll-card-btn.cancel").addEventListener("click", (e) => {
+      e.stopPropagation();
+      renderOneCard(wrap, generatedCards[i], i);
+    });
+
+    // Save
+    wrap.querySelector(".ll-card-btn.save-edit").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const fe = wrap.querySelector("#ef");
+      const be = wrap.querySelector("#eb");
+      const ee = wrap.querySelector("#ee");
+      const te = wrap.querySelector("#et");
+
+      const newFront = (fe ? fe.value : "").trim();
+      if (!newFront) {
+        if (fe) { fe.style.borderColor = "#f87171"; fe.focus(); }
+        return;
+      }
+      const newBack  = isCloze ? (card.back || "") : (be ? be.value.trim() : "");
+      const newExp   = ee ? ee.value.trim() : "";
+      const newTags  = te ? te.value.split(",").map(t=>t.trim()).filter(Boolean) : [];
+
+      generatedCards[i] = { ...card, front: newFront, back: newBack,
+        cloze_text: isCloze ? newFront : card.cloze_text, explanation: newExp, tags: newTags };
+      renderOneCard(wrap, generatedCards[i], i);
+    });
+  }
+
+  // ── Save / export ─────────────────────────────────────────────────────────────
+  async function handleSaveAll() {
+    const s = await getStorage();
+    if (!s.userId) { alert("Connect your Lifeline account in the extension popup to save cards."); return; }
+    let saved = 0;
+    for (const card of generatedCards) {
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "SAVE_CARD_IN_BACKGROUND", payload: { card, apiUrl: s.apiUrl, authToken: s.authToken, userId: s.userId } },
+          (res) => { if (res?.ok) saved++; resolve(); }
+        );
+      });
+    }
+    chrome.runtime.sendMessage({ type: "CARDS_SAVED", payload: { count: saved } });
+    renderSuccess(saved);
+  }
+
+  async function saveSingle(idx, buttonEl) {
+    const s = await getStorage();
+    if (!s.userId) { buttonEl.textContent = "Login first"; return; }
+    buttonEl.textContent = "…"; buttonEl.disabled = true;
+    chrome.runtime.sendMessage(
+      { type: "SAVE_CARD_IN_BACKGROUND", payload: { card: generatedCards[idx], apiUrl: s.apiUrl, authToken: s.authToken, userId: s.userId } },
+      (res) => {
+        buttonEl.textContent = res?.ok ? "✓ Saved" : "Error";
+        buttonEl.className = "ll-card-btn saved";
+        if (res?.ok) chrome.runtime.sendMessage({ type: "CARDS_SAVED", payload: { count: 1 } });
+      }
+    );
+  }
+
+  function exportToAnki() {
+    if (!generatedCards.length) return;
+    const header = "#separator:tab\n#html:false\n#tags column:3\n";
+    const rows = generatedCards.map(card => {
+      let front = getFront(card).replace(/\t|\n/g, " ");
+      let back  = getBack(card).replace(/\t|\n/g, " ");
+      if (card.explanation) back += " | 💡 " + card.explanation.replace(/\t|\n/g, " ");
+      const tags = (card.tags || []).join(" ");
+      return `${front}\t${back}\t${tags}`;
+    }).join("\n");
+    const blob = new Blob([header + rows], { type: "text/plain;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `lifeline-${new Date().toISOString().slice(0,10)}.txt`;
+    a.style.display = "none"; document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function renderSuccess(count) {
+    shadow.getElementById("ll-body").innerHTML = `
+      <div class="ll-success">
+        <div class="ll-success-icon">✅</div>
+        <div class="ll-success-title">${count} card${count!==1?"s":""} saved!</div>
+        <div class="ll-success-sub">Added to your Lifeline queue with spaced repetition.</div>
+        <button class="ll-open-btn" id="ll-go-lf">Open Lifeline →</button>
+        <button class="ll-new-btn" id="ll-new-cap">↩ Capture more</button>
+      </div>
+    `;
+    shadow.getElementById("ll-go-lf").addEventListener("click", () => chrome.runtime.sendMessage({ type: "OPEN_LIFELINE" }));
+    shadow.getElementById("ll-new-cap").addEventListener("click", () => {
+      generatedCards = [];
+      shadow.getElementById("ll-body").innerHTML = `<div class="ll-empty"><span class="ll-empty-icon">📖</span><strong style="color:rgba(255,255,255,0.6);display:block;margin-bottom:8px;">Highlight any text to get started</strong>Select a passage and click the Lifeline button.</div>`;
+    });
+  }
+
+  function loadBadge() {
+    chrome.storage.local.get(["totalCardsSaved"], ({ totalCardsSaved = 0 }) => {
+      const b = shadow.getElementById("ll-badge");
+      if (b && totalCardsSaved > 0) b.textContent = `${totalCardsSaved} saved`;
+    });
+  }
+
+  function getStorage() {
+    return new Promise(r => chrome.storage.local.get({ apiUrl: "http://localhost:3000", userId: null, authToken: null }, r));
+  }
+
+  function esc(str) {
+    return (str || "").toString()
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function detectPageSourceType() {
+    const h = location.hostname.toLowerCase();
+    if (h.includes("youtube.com")) return "video";
+    if (h.includes("uworld.com") || h.includes("amboss.com") || h.includes("boardvitals.com")) return "qbank";
+    if (h.includes("uptodate.com") || h.includes("ncbi.nlm.nih.gov")) return "textbook";
+    return "other";
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CARD GENERATOR (unchanged business logic)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  function buildCards(text, sourceType) {
+    const system = detectSystem(text);
+    const topic  = detectTopic(text, system);
+    const facts  = extractFacts(text);
+    const deck   = `Step 1::${system}::${topic}`;
+    const tags   = [(system||"General").toLowerCase(), (topic||"Concept").toLowerCase().replace(/\s+/g,"-"), sourceType].filter(Boolean);
+    const cards  = [];
+    if (facts[0]) {
+      cards.push({ card_type:"basic", front:pickQ(topic,facts[0]), back:facts[0],
+        explanation:`High-yield ${system}. Know the mechanism and clinical context.`,
+        tags, deck, topic, system, difficulty:3, board_relevance:"step1", source_type:sourceType, source_text:text.slice(0,200) });
+    }
+    const cs = facts[1] || facts[0];
+    if (cs) {
+      const ct = makeCloze(cs);
+      if (ct !== cs) cards.push({ card_type:"cloze", front:ct, back:"", cloze_text:ct,
+        explanation:"Fill-in-the-blank — key fact for retention.",
+        tags:[...tags,"cloze"], deck, topic, system, difficulty:2, board_relevance:"step1", source_type:sourceType, source_text:text.slice(0,200) });
+    }
+    const mn = buildMnemonic(text,topic,system,deck,tags,sourceType);
+    if (mn) cards.push(mn);
+    cards.push(buildVignette(topic,system,facts,deck,tags,sourceType));
+    cards.push(buildWorkup(topic,system,facts,deck,tags,sourceType));
+    cards.push(buildFlowchart(topic,system,deck,tags,sourceType));
+    return { cards: cards.filter(Boolean), topic, system };
+  }
+
+  function pickQ(topic, fact) {
+    if (/strongest|most common|most frequent/i.test(fact)) return `What is the most common risk factor for ${topic}?`;
+    if (/mechanism|pathophys|leads to|results in|due to/i.test(fact)) return `What is the mechanism of ${topic}?`;
+    if (/treat|manag|drug|medication|first.?line/i.test(fact)) return `What is the first-line treatment for ${topic}?`;
+    if (/diagnos|confirm|test|workup|gold standard/i.test(fact)) return `How is ${topic} diagnosed?`;
+    if (/complication|sequela|risk of/i.test(fact)) return `What are the major complications of ${topic}?`;
+    return `What is the key clinical significance of ${topic}?`;
+  }
+
+  const MED_TERMS = ["hypertension","dissection","aortic","cocaine","stenosis","infarction","ischemia","embolism","thrombosis","fibrillation","edema","hemorrhage","anemia","sepsis","pneumonia","cirrhosis","nephrotic","proteinuria","hematuria","creatinine","albumin","troponin","aldosterone","cortisol","insulin","warfarin","heparin"];
+  const STOP = new Set(["the","a","an","is","are","was","were","of","in","on","at","to","for","by","with","and","or","but","that","this","it","be","been","have","has","had","very","also","such","some","any","all","from","than","then","when","where","which","who","how","what","especially","sometimes","noted","particularly"]);
+
+  function makeCloze(s) {
+    const nm = s.match(/>\d+%|\d+%|≥\d+%|\d+\s*mmHg|\d+\s*mg\/dL/);
+    if (nm) return s.replace(nm[0], `{{c1::${nm[0]}}}`);
+    const words = s.split(" ");
+    for (let i=0;i<words.length;i++) {
+      const clean = words[i].replace(/[^a-zA-Z-]/g,"").toLowerCase();
+      if (clean.length>5 && MED_TERMS.some(t=>clean.includes(t)||t.includes(clean))) {
+        const b=[...words]; b[i]=`{{c1::${words[i]}}}`; return b.join(" ");
+      }
+    }
+    const cands = words.filter(w=>w.replace(/[^a-zA-Z]/g,"").length>6&&!STOP.has(w.toLowerCase()));
+    if (cands.length) { const t=cands[Math.floor(cands.length*0.4)]; return s.replace(t,`{{c1::${t}}}`); }
+    return s;
+  }
+
+  const MNEMONIC_DB = {
+    "aortic dissection":{ acronym:"TEACH", items:[{letter:"T",term:"Trauma / Deceleration"},{letter:"E",term:"Ehlers-Danlos / Marfan"},{letter:"A",term:"Atherosclerosis"},{letter:"C",term:"Cocaine / Stimulants"},{letter:"H",term:"Hypertension (>70%)"}], context:"Risk factors for aortic dissection." },
+    "heart failure":{ acronym:"FAILURE", items:[{letter:"F",term:"Fatigue"},{letter:"A",term:"Activity limitation"},{letter:"I",term:"Increased dyspnea"},{letter:"L",term:"Leg edema"},{letter:"U",term:"Unintentional weight gain"},{letter:"R",term:"Rales bilaterally"},{letter:"E",term:"Elevated JVP / S3"}], context:"Signs and symptoms of heart failure." },
+    "nephrotic syndrome":{ acronym:"HELP", items:[{letter:"H",term:"Hypoalbuminemia"},{letter:"E",term:"Edema"},{letter:"L",term:"Lipiduria + Hyperlipidemia"},{letter:"P",term:"Proteinuria >3.5 g/day"}], context:"Four hallmarks of nephrotic syndrome." },
+    "pulmonary embolism":{ acronym:"CHEST", items:[{letter:"C",term:"Chest pain"},{letter:"H",term:"Hemoptysis"},{letter:"E",term:"Elevated heart rate"},{letter:"S",term:"Sudden dyspnea"},{letter:"T",term:"Tachypnea + hypoxia"}], context:"Classic PE symptoms." },
+    "stroke":{ acronym:"FAST", items:[{letter:"F",term:"Face drooping"},{letter:"A",term:"Arm weakness"},{letter:"S",term:"Speech difficulty"},{letter:"T",term:"Time to call 911"}], context:"Stroke recognition mnemonic." },
+  };
+
+  function buildMnemonic(text,topic,system,deck,tags,sourceType) {
+    const tl=(topic||"").toLowerCase();
+    let mn=Object.entries(MNEMONIC_DB).find(([k])=>tl.includes(k))?.[1];
+    if (!mn) {
+      const caps=[...new Set((text.match(/\b[A-Z][a-z]{3,}\b/g)||[]).filter(w=>!["This","The","In","For","And","But","With","From","That","When","What","Where","Also","Both"].includes(w)))].slice(0,5);
+      if (caps.length>=3) { const a=caps.map(w=>w[0]).join(""); if (a.length>=3&&a.length<=7) mn={acronym:a,items:caps.map(w=>({letter:w[0],term:w})),context:`Mnemonic for ${topic}.`}; }
+    }
+    if (!mn) return null;
+    return { card_type:"mnemonic", front:`Mnemonic for ${topic} — ${mn.acronym}`, back:mn.items.map(i=>`${i.letter} — ${i.term}`).join("\n"), acronym:mn.acronym, items:mn.items, context:mn.context, explanation:`Remember: ${mn.acronym}`, tags:[...tags,"mnemonic"], deck, topic, system, difficulty:1, board_relevance:"both", source_type:sourceType, source_text:"" };
+  }
+
+  const VIGNETTE_STEMS = {
+    Cardiology:"A 62yo man with hypertension presents with sudden-onset tearing chest pain radiating to the back. BP 192/110 right arm, 154/88 left arm. CXR shows widened mediastinum.",
+    Renal:"A 7yo boy presents with periorbital edema and frothy urine 10 days after a URI. Serum albumin 1.6 g/dL. Urine protein 4+.",
+    Pulmonology:"A 68yo smoker presents with progressive dyspnea, barrel chest, and decreased breath sounds. FEV1/FVC 0.55.",
+    Neurology:"A 72yo man presents with sudden-onset right arm weakness and expressive aphasia. Onset 2 hours ago.",
+    Gastroenterology:"A 52yo with alcoholic cirrhosis presents with hematemesis. Endoscopy shows large esophageal varices.",
+    Endocrine:"A 28yo woman presents with fatigue, weight gain, constipation, and cold intolerance × 3 months. TSH 42.",
+    General:"A patient presents with symptoms consistent with this condition.",
+  };
+  const VIGNETTE_ANSWERS = {
+    Cardiology:["Diagnosis: Aortic dissection","IV labetalol → SBP <120, HR <60","CT angiography (gold standard)","Type A: emergency surgery; Type B: medical management"],
+    Renal:["Diagnosis: Minimal Change Disease","Prednisone 2mg/kg/day × 4-6 weeks","85% respond to steroids","Watch for hypercoagulability complications"],
+    General:["Apply key teaching points for this diagnosis","Know: mechanism, workup, first-line treatment"],
+  };
+
+  function buildVignette(topic,system,facts,deck,tags,sourceType) {
+    const stem=VIGNETTE_STEMS[system]||VIGNETTE_STEMS.General;
+    const points=VIGNETTE_ANSWERS[system]||facts.slice(0,3);
+    return { card_type:"vignette", front:stem, stem, question:"What is the diagnosis and management?", back:points.join("\n"), answer_points:points, explanation:`Board-style vignette for ${topic}.`, tags:[...tags,"vignette"], deck, topic, system, difficulty:4, board_relevance:"both", source_type:sourceType, source_text:"" };
+  }
+
+  const WORKUP_DB = {
+    "aortic dissection":{ question:"Workup for suspected Aortic Dissection?", steps:[{action:"2 large-bore IVs, monitoring, type & crossmatch"},{action:"IV labetalol → HR <60, then SBP <120"},{action:"EKG: rule out concurrent STEMI"},{action:"CXR: widened mediastinum?"},{action:"CT Angiography (gold standard if stable)"},{action:"Type A: emergency surgery; Type B: medical management"}] },
+    "heart failure":{ question:"Workup for suspected Heart Failure?", steps:[{action:"BNP or NT-proBNP (>400 supports HF)"},{action:"CXR: cardiomegaly, Kerley B lines"},{action:"EKG: Afib, LVH, prior MI?"},{action:"Echocardiogram: EF, wall motion, valves"},{action:"BMP + troponin + TSH"}] },
+    "nephrotic syndrome":{ question:"Workup for Nephrotic Syndrome?", steps:[{action:"Urine protein:creatinine ratio (>3.5 g/day)"},{action:"Serum albumin + lipid panel"},{action:"Urine microscopy: oval fat bodies"},{action:"ANA, complement, anti-PLA2R, hepatitis serologies"},{action:"Renal biopsy (adults); assume MCD in children <8yo"}] },
+  };
+
+  function buildWorkup(topic,system,facts,deck,tags,sourceType) {
+    const tl=(topic||"").toLowerCase();
+    let wk=Object.entries(WORKUP_DB).find(([k])=>tl.includes(k))?.[1];
+    if (!wk) wk={ question:`Workup for ${topic}?`, steps:[{action:"History & physical exam"},{action:"Basic labs: CBC, BMP, LFTs"},{action:"EKG and/or CXR if indicated"},{action:"Targeted imaging"},{action:"Confirmatory test / biopsy if needed"}] };
+    return { card_type:"workup", front:wk.question, back:wk.steps.map((s,i)=>`${i+1}. ${s.action}`).join("\n"), steps:wk.steps, explanation:"Know the rationale for each step.", tags:[...tags,"workup"], deck, topic, system, difficulty:3, board_relevance:"both", source_type:sourceType, source_text:"" };
+  }
+
+  const FLOWCHART_DB = {
+    "aortic dissection":{ start:"Suspected Aortic Dissection", steps:[{type:"action",text:"IV labetalol → HR <60, SBP <120"},{type:"decision",text:"Hemodynamically stable?",yes:"CT Angiography",no:"TEE + Emergency OR"},{type:"decision",text:"Type A?",yes:"Emergency surgery",no:"Medical management"}], end:"ICU monitoring" },
+    "heart failure":{ start:"Suspected Heart Failure", steps:[{type:"action",text:"BNP + Echo + CXR + EKG"},{type:"decision",text:"EF <40%?",yes:"ACEi + Beta-blocker + Diuretic",no:"HFpEF: diuresis + treat comorbidities"}], end:"Monitor BNP, annual echo" },
+  };
+
+  function buildFlowchart(topic,system,deck,tags,sourceType) {
+    const tl=(topic||"").toLowerCase();
+    let fc=Object.entries(FLOWCHART_DB).find(([k])=>tl.includes(k))?.[1];
+    if (!fc) fc={ start:`Suspected ${topic}`, steps:[{type:"action",text:"History, exam, initial labs"},{type:"decision",text:"Hemodynamically unstable?",yes:"Stabilize + emergent workup",no:"Systematic workup"},{type:"decision",text:"Diagnosis confirmed?",yes:"Specific treatment",no:"Broaden differential"}], end:"Follow up and titrate therapy" };
+    return { card_type:"flowchart", front:`${topic} — Algorithm`, back:JSON.stringify(fc), flowchart:fc, explanation:"Know each branch point.", tags:[...tags,"algorithm"], deck, topic, system, difficulty:4, board_relevance:"both", source_type:sourceType, source_text:"" };
+  }
+
+  const SYSTEM_MAP = {
+    Cardiology:["heart","cardiac","myocardial","atrial","aortic","dissection","coronary","troponin"],
+    Renal:["kidney","renal","glomerular","nephrotic","nephritic","creatinine","proteinuria","hematuria"],
+    Pulmonology:["lung","pulmonary","respiratory","asthma","copd","pneumonia","pleural","dyspnea"],
+    Neurology:["brain","neural","stroke","cerebral","seizure","dementia","cranial"],
+    Gastroenterology:["liver","hepatic","bowel","gastric","pancreatic","biliary","cirrhosis","hepatitis"],
+    Endocrine:["thyroid","diabetes","insulin","cortisol","adrenal","glucose","aldosterone"],
+    Hematology:["blood","anemia","hemoglobin","platelet","leukemia","coagulation","thrombosis"],
+    Pharmacology:["drug","dose","receptor","inhibitor","mechanism of action","contraindication"],
+    "Infectious Disease":["infection","bacteria","virus","sepsis","antimicrobial","antibiotic","fever"],
+  };
+
+  function detectSystem(text) {
+    const lower=text.toLowerCase(); let best="General",bestScore=0;
+    for (const [sys,kw] of Object.entries(SYSTEM_MAP)) {
+      const score=kw.filter(k=>lower.includes(k.toLowerCase())).length;
+      if (score>bestScore) { bestScore=score; best=sys; }
+    }
+    return best;
+  }
+
+  function detectTopic(text,system) {
+    const sm=text.match(/[A-Z][a-z]+(?: [A-Z][a-z]+)* (?:Disease|Syndrome|Disorder|Failure|Dissection|Infarction|Nephropathy|Stenosis|Embolism|Cardiomyopathy)/);
+    if (sm) return sm[0];
+    const cm=text.match(/(?:acute |chronic )?[A-Z][a-z]+(?: [A-Z][a-z]+)*(?= (?:is|are|was|presents|causes|occurs|results))/);
+    if (cm&&cm[0].length>4) return cm[0];
+    const first=text.split(/[.,]/)[0].trim();
+    if (first.length<70) { const n=first.match(/[A-Z][a-z]+(?: [a-z]+){0,3}/); if (n) return n[0]; }
+    return (system&&system!=="General")?`${system} Pathology`:"Medical Concept";
+  }
+
+  function extractFacts(text) {
+    return text.replace(/\n+/g," ").split(/(?<=[.!?])\s+/)
+      .map(s=>s.trim()).filter(s=>s.length>25&&s.length<400).slice(0,8);
+  }
+
+})();
