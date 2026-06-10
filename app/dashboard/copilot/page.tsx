@@ -54,7 +54,7 @@ function buildWeakAreas(store: ReturnType<typeof readStore>): WeakArea[] {
       totalAnswered: s.total,
       accuracy: Math.round((s.correct / s.total) * 100),
       lastMissed: s.lastMissed || system,
-      urgency: (s.total - s.correct) / s.total > 0.5 ? "critical" : (s.total - s.correct) / s.total > 0.3 ? "warning" : "watch",
+      urgency: ((s.total - s.correct) / s.total > 0.5 ? "critical" : (s.total - s.correct) / s.total > 0.3 ? "warning" : "watch") as "critical" | "warning" | "watch",
     }))
     .filter(w => w.missCount > 0)
     .sort((a, b) => b.missCount - a.missCount);
