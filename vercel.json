@@ -4,10 +4,6 @@
   "devCommand": "npm run dev",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "env": {
-    "ANTHROPIC_API_KEY": "@anthropic-api-key",
-    "OPENAI_API_KEY": "@openai-api-key"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
