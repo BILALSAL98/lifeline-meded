@@ -1,0 +1,2507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lifeline — Round Room</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #090d1a;
+  color: #fff;
+  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(0,201,177,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(79,142,247,0.04) 0%, transparent 50%),
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+/* ── Animations ── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes speakRing { 0%{transform:scale(0.9);opacity:0.9} 100%{transform:scale(1.5);opacity:0} }
+@keyframes msgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ecg {
+  0%   { stroke-dashoffset: 1000; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes glow {
+  0%,100% { box-shadow: 0 0 20px color-mix(in srgb, var(--active-color,#00c9b1) 25%, transparent); }
+  50%     { box-shadow: 0 0 40px color-mix(in srgb, var(--active-color,#00c9b1) 50%, transparent); }
+}
+@keyframes badgeIn { from{opacity:0;transform:scale(0.92) translateY(4px)} to{opacity:1;transform:scale(1) translateY(0)} }
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 28px;
+  background: rgba(10,14,28,0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+}
+.header::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,201,177,0.4), rgba(79,142,247,0.4), transparent);
+}
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.header-logo img { width: 28px; height: 34px; }
+.header-logo-name {
+  font-size: 13px; font-weight: 900; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #fff;
+}
+.header-logo-sub {
+  font-size: 8px; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(255,255,255,0.3);
+}
+
+.header-center { text-align: center; }
+.header-title {
+  font-size: 22px; font-weight: 900; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff 30%, #00c9b1 70%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header-subtitle {
+  font-size: 9px; color: rgba(255,255,255,0.3);
+  letter-spacing: 0.2em; text-transform: uppercase; margin-top: 2px;
+}
+
+/* Paging ticker in header */
+.paging-ticker {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,193,7,0.08); border: 1px solid rgba(255,193,7,0.2);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 10px; font-weight: 700; color: #ffc107;
+  letter-spacing: 0.05em;
+}
+.paging-dot { width: 6px; height: 6px; border-radius: 50%; background: #ffc107; animation: pulse 1.4s infinite; }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+.el-key-btn {
+  padding: 7px 14px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5);
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: all 0.2s;
+}
+.el-key-btn:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.2); }
+.connection-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35);
+  padding: 5px 12px; border-radius: 20px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+}
+.connection-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); transition: background 0.3s;
+}
+.connection-dot.connected { background: #78c840; box-shadow: 0 0 8px #78c840; }
+.connection-dot.connecting { background: #ffc107; animation: pulse 0.8s infinite; }
+.connection-dot.error { background: #f44336; }
+
+/* ── Rainbow stripe ── */
+.rainbow {
+  height: 3px;
+  background: linear-gradient(90deg,#9b5fe0 0%,#4f8ef7 12%,#00c9b1 24%,#4caf50 36%,#a8e063 48%,#ffc107 60%,#ff9800 72%,#f44336 84%,#e91e63 100%);
+  flex-shrink: 0;
+}
+
+/* ── Main layout ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 272px 1fr 290px;
+  overflow: hidden;
+  height: calc(100vh - 64px);
+}
+
+/* ── Left panel — Doctor roster ── */
+.doctors-panel {
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 16px 12px;
+  overflow-y: auto;
+  background: rgba(8,12,24,0.8);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.doctors-panel::-webkit-scrollbar { width: 3px; }
+.doctors-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.doctors-label {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.15em; color: rgba(255,255,255,0.25);
+  margin-bottom: 6px; padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; gap: 6px;
+}
+.ward-badge {
+  background: rgba(0,201,177,0.12); color: #00c9b1;
+  border: 1px solid rgba(0,201,177,0.2); border-radius: 4px;
+  font-size: 8px; padding: 1px 6px; font-weight: 700;
+  letter-spacing: 0.05em; margin-left: auto;
+}
+
+/* Doctor ID badge cards */
+.doctor-card {
+  border-radius: 12px; padding: 10px 12px; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  display: flex; align-items: center; gap: 10px;
+  position: relative; overflow: hidden;
+}
+.doctor-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--doc-color);
+  opacity: 0; transition: opacity 0.2s;
+  border-radius: 3px 0 0 3px;
+}
+.doctor-card:hover {
+  border-color: color-mix(in srgb, var(--doc-color) 35%, transparent);
+  background: color-mix(in srgb, var(--doc-color) 6%, transparent);
+  transform: translateX(2px);
+}
+.doctor-card:hover::before { opacity: 0.6; }
+.doctor-card.active {
+  border-color: color-mix(in srgb, var(--doc-color) 50%, transparent);
+  background: color-mix(in srgb, var(--doc-color) 10%, rgba(10,14,28,0.8));
+  transform: translateX(3px);
+  animation: badgeIn 0.2s ease-out;
+}
+.doctor-card.active::before { opacity: 1; }
+
+.doctor-avatar {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--doc-color) 12%, rgba(255,255,255,0.04));
+  border: 1.5px solid color-mix(in srgb, var(--doc-color) 25%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; position: relative; transition: all 0.2s;
+}
+.doctor-card.active .doctor-avatar {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--doc-color) 40%, transparent);
+}
+.doctor-speaking-ring {
+  position: absolute; inset: -5px; border-radius: 14px;
+  border: 2px solid var(--doc-color); opacity: 0;
+  animation: speakRing 1s ease-out infinite;
+}
+.doctor-card.speaking .doctor-speaking-ring { opacity: 1; }
+
+.doctor-info { flex: 1; min-width: 0; }
+.doctor-name {
+  font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.85);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+.doctor-card.active .doctor-name { color: var(--doc-color); }
+.doctor-specialty {
+  font-size: 9px; font-weight: 600;
+  color: rgba(255,255,255,0.3); margin-top: 2px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.on-call-dot {
+  width: 6px; height: 6px; border-radius: 50; flex-shrink: 0;
+  background: rgba(255,255,255,0.15); transition: background 0.2s;
+}
+.doctor-card.active .on-call-dot { background: var(--doc-color); box-shadow: 0 0 6px var(--doc-color); }
+
+/* ── Center panel ── */
+.conversation-panel {
+  display: flex; flex-direction: column;
+  background: #090d1a;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Exam room header */
+.active-doctor-header {
+  padding: 18px 28px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; gap: 18px;
+  flex-shrink: 0;
+  background: rgba(8,12,24,0.6);
+  backdrop-filter: blur(10px);
+}
+.active-doc-avatar {
+  width: 62px; height: 62px; border-radius: 18px;
+  background: color-mix(in srgb, var(--active-color,#00c9b1) 12%, rgba(255,255,255,0.03));
+  border: 2px solid color-mix(in srgb, var(--active-color,#00c9b1) 35%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; position: relative; overflow: hidden;
+  transition: all 0.3s;
+}
+.speaking-active .active-doc-avatar { animation: glow 1.5s ease-in-out infinite; }
+.active-doc-speaking-ring {
+  position: absolute; inset: -6px; border-radius: 22px;
+  border: 2px solid var(--active-color,#00c9b1); opacity: 0;
+}
+.speaking-active .active-doc-speaking-ring {
+  animation: speakRing 0.9s ease-out infinite; opacity: 1;
+}
+
+.active-doc-info { flex: 1; }
+.room-tag {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.15em; color: rgba(255,255,255,0.25);
+  margin-bottom: 4px; display: flex; align-items: center; gap: 5px;
+}
+.room-tag::before {
+  content: ''; display: inline-block; width: 14px; height: 1px;
+  background: rgba(255,255,255,0.2);
+}
+.active-doc-name {
+  font-size: 20px; font-weight: 900; color: #fff; letter-spacing: -0.5px;
+  line-height: 1;
+}
+.active-doc-name span { color: var(--active-color,#00c9b1); }
+.active-doc-specialty {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4);
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.active-doc-focus {
+  font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 5px;
+  font-style: italic; line-height: 1.4;
+}
+
+.status-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s;
+  letter-spacing: 0.03em;
+}
+.status-chip.live {
+  background: color-mix(in srgb, var(--active-color,#00c9b1) 12%, transparent);
+  color: var(--active-color,#00c9b1);
+  border-color: color-mix(in srgb, var(--active-color,#00c9b1) 35%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--active-color,#00c9b1) 15%, transparent);
+}
+.status-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-chip.live .status-chip-dot { animation: pulse 1s infinite; }
+
+/* ── Transcript ── */
+.transcript-area {
+  flex: 1; overflow-y: auto;
+  padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.transcript-area::-webkit-scrollbar { width: 3px; }
+.transcript-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+.transcript-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; gap: 12px;
+}
+.transcript-empty-icon { font-size: 56px; opacity: 0.35; }
+.transcript-empty-title {
+  font-size: 18px; font-weight: 800; color: rgba(255,255,255,0.5);
+  letter-spacing: -0.3px;
+}
+.transcript-empty-hint {
+  font-size: 13px; line-height: 1.7; color: rgba(255,255,255,0.25); max-width: 300px;
+}
+.transcript-empty-hint strong { color: rgba(255,255,255,0.45); }
+
+.msg { display: flex; gap: 12px; align-items: flex-start; animation: msgIn 0.3s ease-out; }
+.msg-avatar {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+  background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.08);
+}
+.msg.doctor .msg-avatar {
+  background: color-mix(in srgb, var(--active-color,#00c9b1) 12%, transparent);
+  border-color: color-mix(in srgb, var(--active-color,#00c9b1) 30%, transparent);
+  border-radius: 10px 10px 4px 10px;
+}
+.msg.user .msg-avatar { border-radius: 10px 10px 10px 4px; }
+.msg-body { flex: 1; }
+.msg-name {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; margin-bottom: 5px; color: rgba(255,255,255,0.35);
+}
+.msg.doctor .msg-name { color: var(--active-color,#00c9b1); }
+.msg-text {
+  font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.88);
+  background: rgba(255,255,255,0.04); border-radius: 4px 14px 14px 14px;
+  padding: 11px 16px; border: 1px solid rgba(255,255,255,0.07);
+}
+.msg.doctor .msg-text {
+  background: color-mix(in srgb, var(--active-color,#00c9b1) 6%, rgba(255,255,255,0.02));
+  border-color: color-mix(in srgb, var(--active-color,#00c9b1) 18%, transparent);
+  border-radius: 14px 14px 14px 4px;
+}
+.msg.user { flex-direction: row-reverse; }
+.msg.user .msg-body { text-align: right; }
+.msg.user .msg-text {
+  background: rgba(79,142,247,0.1); border-color: rgba(79,142,247,0.2);
+  border-radius: 14px 4px 14px 14px;
+}
+.msg.user .msg-name { color: #4f8ef7; }
+
+/* ── Controls bar ── */
+.controls-bar {
+  padding: 16px 28px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-shrink: 0;
+  background: rgba(8,12,24,0.8);
+  backdrop-filter: blur(10px);
+}
+.ctrl-btn {
+  width: 48px; height: 48px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5);
+  font-size: 18px; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.2); transform: scale(1.05); }
+.ctrl-btn.muted {
+  background: rgba(248,113,113,0.12); color: #f87171;
+  border-color: rgba(248,113,113,0.3);
+}
+.ctrl-btn.muted:hover { background: rgba(248,113,113,0.22); }
+
+.start-btn {
+  padding: 14px 36px; border-radius: 50px; border: none;
+  background: linear-gradient(135deg, var(--active-color,#00c9b1), color-mix(in srgb, var(--active-color,#00c9b1) 70%, #4f8ef7));
+  color: #050505; font-size: 15px; font-weight: 800; cursor: pointer;
+  transition: all 0.2s; font-family: inherit; letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 9px;
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--active-color,#00c9b1) 35%, transparent);
+}
+.start-btn:hover { transform: scale(1.04); filter: brightness(1.1); }
+.start-btn:active { transform: scale(0.98); }
+.start-btn.end-btn {
+  background: rgba(248,113,113,0.15); color: #f87171;
+  border: 1.5px solid rgba(248,113,113,0.3);
+  box-shadow: 0 4px 16px rgba(248,113,113,0.15);
+}
+.start-btn.end-btn:hover { background: rgba(248,113,113,0.25); }
+
+.vol-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 12px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+}
+.vol-bar-label { font-size: 12px; }
+.vol-bars { display: flex; gap: 2px; align-items: flex-end; height: 18px; }
+.vol-bar-segment {
+  width: 3px; border-radius: 2px; background: rgba(255,255,255,0.1);
+  transition: height 0.08s, background 0.08s; min-height: 3px;
+}
+.vol-bar-segment.active { background: #78c840; box-shadow: 0 0 4px rgba(120,200,64,0.5); }
+
+/* ── Right panel ── */
+.info-panel {
+  border-left: 1px solid rgba(255,255,255,0.06);
+  padding: 16px 16px;
+  overflow-y: auto;
+  background: rgba(8,12,24,0.8);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.info-panel::-webkit-scrollbar { width: 3px; }
+.info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+.info-section-label {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.15em; color: rgba(255,255,255,0.22); margin-bottom: 10px;
+}
+.info-card {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 14px;
+}
+.info-card-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.65); margin-bottom: 8px; }
+.info-card-body { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.65; }
+
+.tip-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.tip-item:last-child { border-bottom: none; padding-bottom: 0; }
+.tip-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+.tip-text { font-size: 12px; color: rgba(255,255,255,0.4); line-height: 1.55; }
+
+.voice-config {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 14px;
+}
+.voice-config-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
+.agent-id-field {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 8px 10px;
+  font-size: 10px; color: rgba(255,255,255,0.45);
+  word-break: break-all; line-height: 1.6; font-family: monospace;
+}
+.config-hint { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 8px; line-height: 1.6; }
+
+/* ── HeyGen Avatar Panel ── */
+.heygen-panel {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+.heygen-panel.visible { display: flex; }
+.heygen-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.12em; color: #00c9b1;
+  background: rgba(0,201,177,0.08); border: 1px solid rgba(0,201,177,0.2);
+  border-radius: 20px; padding: 4px 10px; width: fit-content;
+}
+.heygen-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #00c9b1; animation: pulse 1.4s infinite; }
+.heygen-open-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #00c9b1, #4f8ef7);
+  color: #050505; font-size: 13px; font-weight: 800;
+  font-family: inherit; transition: filter 0.2s; width: 100%;
+  justify-content: center;
+}
+.heygen-open-btn:hover { filter: brightness(1.1); }
+.heygen-hint { font-size: 10px; color: rgba(255,255,255,0.25); text-align: center; line-height: 1.6; }
+
+/* ── Video Call Overlay ── */
+@keyframes waveBar { 0%,100%{transform:scaleY(1);opacity:0.6} 50%{transform:scaleY(2);opacity:1} }
+@keyframes vcFadeIn { from{opacity:0;transform:scale(0.98)} to{opacity:1;transform:scale(1)} }
+
+.video-call-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: #06090f;
+  display: none; flex-direction: column;
+  animation: vcFadeIn 0.25s ease-out;
+}
+.video-call-overlay.active { display: flex; }
+
+.vc-stage {
+  flex: 1; position: relative; overflow: hidden; background: #06090f;
+}
+
+#doctor-video {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+.vc-loading {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: linear-gradient(135deg, #07091a 0%, #0b1020 50%, #070d1a 100%);
+}
+.vc-loading-avatar {
+  width: 100px; height: 100px; border-radius: 28px; font-size: 52px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,201,177,0.1); border: 2px solid rgba(0,201,177,0.3);
+  box-shadow: 0 0 40px rgba(0,201,177,0.2);
+}
+.vc-loading-dots { display: flex; gap: 8px; }
+.vc-loading-dots span {
+  width: 8px; height: 8px; border-radius: 50%; background: #00c9b1;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.vc-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.vc-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Doctor info overlay (top-left) */
+.vc-doc-badge {
+  position: absolute; top: 20px; left: 20px; z-index: 4;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+  padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+}
+.vc-doc-badge-live {
+  width: 8px; height: 8px; border-radius: 50%; background: #00c9b1; animation: pulse 1.4s infinite; flex-shrink: 0;
+}
+
+/* Speaking wave (bottom-left) */
+.vc-speaking-wave {
+  position: absolute; bottom: 90px; left: 24px; z-index: 4;
+  display: none; gap: 3px; align-items: flex-end; height: 24px;
+}
+.vc-speaking-wave.active { display: flex; }
+.vc-wave-bar {
+  width: 3px; border-radius: 2px; background: #00c9b1;
+  animation: waveBar 0.7s ease-in-out infinite;
+}
+.vc-wave-bar:nth-child(1){height:6px;animation-delay:0s}
+.vc-wave-bar:nth-child(2){height:12px;animation-delay:0.1s}
+.vc-wave-bar:nth-child(3){height:20px;animation-delay:0.2s}
+.vc-wave-bar:nth-child(4){height:14px;animation-delay:0.3s}
+.vc-wave-bar:nth-child(5){height:8px;animation-delay:0.4s}
+
+/* Student cam (PiP corner) */
+.vc-student-pip {
+  position: absolute; bottom: 90px; right: 20px; z-index: 4;
+  width: 180px; border-radius: 14px; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.15);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  background: #111; display: none;
+}
+.vc-student-pip.visible { display: block; }
+#student-video { width: 100%; height: 100%; object-fit: cover; display: block; aspect-ratio: 4/3; }
+
+/* Transcript side panel */
+.vc-transcript {
+  position: absolute; right: 0; top: 0; bottom: 0; z-index: 4;
+  width: 300px; transform: translateX(100%); transition: transform 0.28s ease;
+  background: rgba(7,9,20,0.92); backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255,255,255,0.07);
+  display: flex; flex-direction: column;
+}
+.vc-transcript.open { transform: translateX(0); }
+.vc-transcript-hd {
+  padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: space-between;
+}
+.vc-transcript-body { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.vc-transcript-body::-webkit-scrollbar { width: 3px; }
+.vc-transcript-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); }
+.vcm { max-width: 90%; }
+.vcm.doc { align-self: flex-start; }
+.vcm.usr { align-self: flex-end; }
+.vcm-name { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.25); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+.vcm-bubble { padding: 8px 11px; border-radius: 12px; font-size: 12px; line-height: 1.55; }
+.vcm.doc .vcm-bubble { background: rgba(0,201,177,0.1); color: rgba(255,255,255,0.8); border-radius: 4px 12px 12px 12px; }
+.vcm.usr .vcm-bubble { background: rgba(79,142,247,0.12); color: rgba(255,255,255,0.8); border-radius: 12px 4px 12px 12px; }
+
+/* ── Voice-mode animated avatar ── */
+.vc-voice-avatar {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.vc-voice-avatar.visible { display: flex; }
+
+.vc-voice-avatar-face {
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #1a2540, #090d1a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 88px; position: relative; z-index: 2;
+  border: 3px solid rgba(0,201,177,0.25);
+  box-shadow: 0 0 40px rgba(0,201,177,0.1), 0 20px 60px rgba(0,0,0,0.6);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.vc-voice-avatar.speaking .vc-voice-avatar-face {
+  border-color: rgba(0,201,177,0.8);
+  box-shadow: 0 0 70px rgba(0,201,177,0.35), 0 20px 60px rgba(0,0,0,0.6);
+}
+.vc-voice-ring {
+  position: absolute; width: 200px; height: 200px; border-radius: 50%;
+  border: 2px solid rgba(0,201,177,0.5);
+  animation: voiceRing 1.8s ease-out infinite; opacity: 0;
+}
+.vc-voice-ring:nth-child(2) { animation-delay: 0.5s; }
+.vc-voice-ring:nth-child(3) { animation-delay: 1.0s; }
+@keyframes voiceRing {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(2.0); opacity: 0; }
+}
+.vc-voice-avatar:not(.speaking) .vc-voice-ring { animation-play-state: paused; opacity: 0; }
+
+.vc-voice-info {
+  position: absolute; bottom: -64px; left: 50%; transform: translateX(-50%);
+  text-align: center; white-space: nowrap;
+}
+.vc-voice-info-name { font-size: 20px; font-weight: 800; color: #fff; }
+.vc-voice-info-spec { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+/* Controls bar */
+.vc-controls {
+  height: 76px; flex-shrink: 0;
+  background: rgba(7,9,20,0.97); backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 0 24px;
+}
+.vc-btn {
+  width: 50px; height: 50px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.08); color: #fff; font-size: 20px;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.vc-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.06); }
+.vc-btn.muted { background: rgba(244,67,54,0.2); color: #f44336; }
+.vc-end-btn {
+  width: 60px; height: 50px; border-radius: 30px; border: none;
+  background: #e53935; color: #fff; font-size: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.vc-end-btn:hover { background: #c62828; transform: scale(1.06); }
+
+/* Avatar Picker Modal */
+.avatar-picker-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.88); backdrop-filter: blur(16px);
+  display: none; align-items: center; justify-content: center;
+}
+.avatar-picker-overlay.open { display: flex; }
+.avatar-picker-box {
+  background: #0e1428; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 22px; padding: 28px; width: 500px; max-width: 95vw;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+}
+.avatar-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.avatar-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border-radius: 12px; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); transition: all 0.15s;
+}
+.avatar-item:hover { border-color: rgba(0,201,177,0.35); background: rgba(0,201,177,0.05); }
+.avatar-item.selected { border-color: #00c9b1; background: rgba(0,201,177,0.1); }
+.avatar-thumb { width: 46px; height: 46px; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.06); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.avatar-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── API key modal ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5,8,18,0.88);
+  backdrop-filter: blur(12px); display: none;
+  align-items: center; justify-content: center; z-index: 100;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: #0e1428;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 30px; width: 420px; max-width: 95vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.modal-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+.modal-desc { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.65; margin-bottom: 20px; }
+.modal-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  padding: 12px 14px; font-size: 13px; color: rgba(255,255,255,0.85);
+  outline: none; font-family: monospace; margin-bottom: 14px;
+  transition: border-color 0.2s;
+}
+.modal-input:focus { border-color: rgba(0,201,177,0.5); background: rgba(0,201,177,0.03); }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-cancel {
+  padding: 10px 20px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.4); font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.modal-save {
+  padding: 10px 24px; border-radius: 12px; border: none;
+  background: linear-gradient(135deg, #00c9b1, #4f8ef7);
+  color: #050505; font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+}
+.modal-save:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 56 78" width="28" height="39" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <!-- Outer left — lime green sweeps hard right -->
+      <path d="M2,0 C38,8 34,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+      <path d="M7,0 C36,12 32,46 28,62" stroke="#a8e063" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M11,0 C28,16 28,44 28,62" stroke="#ffd600" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M15,0 C22,18 26,44 28,62" stroke="#ffc107" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M19,0 C20,22 26,46 28,62" stroke="#ff9800" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M22,0 C22,26 26,48 28,62" stroke="#ff5722" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M25,0 C24,30 26,50 28,62" stroke="#f44336" stroke-width="2.3" stroke-linecap="round"/>
+      <!-- Centre -->
+      <path d="M28,0 C28,32 28,50 28,62" stroke="#e91e63" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="M31,0 C32,30 30,50 28,62" stroke="#ab47bc" stroke-width="2.3" stroke-linecap="round"/>
+      <path d="M34,0 C36,26 30,48 28,62" stroke="#9b5fe0" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M37,0 C38,22 30,46 28,62" stroke="#2196f3" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M41,0 C40,18 30,44 28,62" stroke="#00bcd4" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M45,0 C42,14 30,44 28,62" stroke="#00c9b1" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M49,0 C36,12 28,46 28,62" stroke="#4caf50" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Outer right — green sweeps hard left -->
+      <path d="M54,0 C18,8 22,48 28,62" stroke="#78c840" stroke-width="3" stroke-linecap="round"/>
+      <!-- Downward arrow -->
+      <polygon points="28,78 14,62 42,62" fill="#78c840"/>
+    </svg>
+    <div>
+      <div class="header-logo-name">Lifeline</div>
+      <div class="header-logo-sub">Medical Education</div>
+    </div>
+  </div>
+
+  <div class="header-center">
+    <div class="header-title">LIFELINE ROUND ROOM</div>
+    <div class="header-subtitle">Teaching Hospital · AI Attendings on Call</div>
+  </div>
+
+  <div class="header-right">
+    <div class="paging-ticker">
+      <div class="paging-dot"></div>
+      <span id="paging-text">GRAND ROUNDS IN SESSION</span>
+    </div>
+    <div class="connection-badge">
+      <div class="connection-dot" id="conn-dot"></div>
+      <span id="conn-label">Standing by</span>
+    </div>
+    <button class="el-key-btn" id="api-key-btn">🔑 API Key</button>
+  </div>
+</div>
+
+<!-- Rainbow stripe -->
+<div class="rainbow"></div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT: Doctor roster -->
+  <div class="doctors-panel">
+    <div class="doctors-label">🩺 Attending Physicians <span class="ward-badge">WARD 7</span></div>
+    <input type="text" id="doctor-search" placeholder="Search specialty…" style="
+      width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; padding:8px 11px; font-size:12px; color:rgba(255,255,255,0.7);
+      outline:none; font-family:inherit; margin-bottom:8px;
+    " oninput="filterDoctors(this.value)" />
+    <!-- Doctor cards injected by JS -->
+  </div>
+
+  <!-- CENTER: Conversation -->
+  <div class="conversation-panel">
+
+    <!-- Active doctor header -->
+    <div class="active-doctor-header" id="active-doc-header" style="--active-color: #00c9b1">
+      <div class="active-doc-avatar" id="active-doc-avatar">
+        <div class="active-doc-speaking-ring" id="speaking-ring"></div>
+        <span id="active-doc-emoji">👩‍⚕️</span>
+        <img id="active-doc-photo" src="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;" />
+      </div>
+      <div class="active-doc-info">
+        <div class="room-tag" id="room-tag">Now consulting</div>
+        <div class="active-doc-name" id="active-doc-name">Dr. <span>Sarah Chen</span></div>
+        <div class="active-doc-specialty" id="active-doc-specialty">Internal Medicine · Attending Physician</div>
+        <div class="active-doc-focus" id="active-doc-focus">"Ask me anything — clinical reasoning, diagnostics, treatment plans"</div>
+      </div>
+      <div class="status-chip" id="status-chip">
+        <div class="status-chip-dot"></div>
+        <span id="status-text">Ready</span>
+      </div>
+    </div>
+
+    <!-- Transcript -->
+    <div class="transcript-area" id="transcript">
+      <div class="transcript-empty" id="transcript-empty">
+        <span class="transcript-empty-icon">🏥</span>
+        <div class="transcript-empty-title">You're on the floor.</div>
+        <div class="transcript-empty-hint">
+          Pick an attending from the roster and hit<br>
+          <strong>Start Consultation</strong> — they're ready for you.
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="vol-bar" id="input-vol">
+        <span class="vol-bar-label">🎙</span>
+        <div class="vol-bars" id="vol-bars">
+          <div class="vol-bar-segment" id="vb1"></div>
+          <div class="vol-bar-segment" id="vb2"></div>
+          <div class="vol-bar-segment" id="vb3"></div>
+          <div class="vol-bar-segment" id="vb4"></div>
+          <div class="vol-bar-segment" id="vb5"></div>
+          <div class="vol-bar-segment" id="vb6"></div>
+          <div class="vol-bar-segment" id="vb7"></div>
+          <div class="vol-bar-segment" id="vb8"></div>
+        </div>
+      </div>
+
+      <button class="ctrl-btn" id="mute-btn" title="Mute microphone" style="display:none">🎙️</button>
+      <button class="start-btn" id="main-btn">▶ Start Consultation</button>
+      <button class="ctrl-btn" id="clear-btn" title="Clear transcript">🗑</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Info panel -->
+  <div class="info-panel">
+
+    <!-- Voice agent config -->
+    <div>
+      <div class="info-section-label">Voice Agent</div>
+      <div class="voice-config" id="voice-config">
+        <div class="voice-config-title" id="vc-title">Active Agent</div>
+        <div class="agent-id-field" id="agent-id-display">—</div>
+        <div class="config-hint">To assign different voices per doctor, update each doctor's <code>agentId</code> in the source file and create agents at <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" style="color:#00c9b1;">elevenlabs.io</a></div>
+      </div>
+    </div>
+
+    <!-- HeyGen Live Avatar (Dr. Chen only) -->
+    <div class="heygen-panel" id="heygen-panel">
+      <div class="info-section-label" style="color:#00c9b1;">🎥 Live Video Avatar</div>
+      <div class="heygen-badge">
+        <div class="heygen-badge-dot"></div>
+        D-ID · Expressive Avatar
+      </div>
+      <!-- Avatar preview card -->
+      <div style="
+        border-radius:14px;
+        border:1.5px solid rgba(0,201,177,0.25);
+        background:linear-gradient(135deg,rgba(0,201,177,0.06) 0%,rgba(79,142,247,0.06) 100%);
+        padding:22px 18px;
+        display:flex;flex-direction:column;align-items:center;gap:14px;
+        text-align:center;
+      ">
+        <div id="did-panel-avatar" style="
+          width:72px;height:72px;border-radius:50%;
+          background:linear-gradient(135deg,rgba(0,201,177,0.2),rgba(79,142,247,0.2));
+          border:2px solid rgba(0,201,177,0.4);
+          display:flex;align-items:center;justify-content:center;
+          font-size:34px;
+          box-shadow:0 0 24px rgba(0,201,177,0.3);
+        ">🧑‍⚕️</div>
+        <div>
+          <div id="did-panel-name" style="font-size:13px;font-weight:800;color:#fff;margin-bottom:4px;">Select a Doctor</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.6;">
+            Realistic talking avatar powered by D-ID.<br>
+            Lip-synced voice, human mannerisms, live AI.
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;font-size:10px;color:rgba(0,201,177,0.7);background:rgba(0,201,177,0.08);border-radius:20px;padding:4px 10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#00c9b1;animation:pulse 1.4s infinite;"></div>
+          Live avatar available
+        </div>
+        <button class="heygen-open-btn" onclick="startConversationOrVideo()">
+          🎙️ Start Consultation
+        </button>
+        <div style="font-size:10px;color:rgba(255,255,255,0.2);line-height:1.6;">
+          Full-screen voice consultation — doctor talks, listens, and teaches in real time.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div>
+      <div class="info-section-label">📋 Rounds Prep</div>
+      <div class="info-card">
+        <div class="tip-item">
+          <span class="tip-icon">🏃</span>
+          <span class="tip-text"><strong style="color:rgba(255,255,255,0.6)">Present a case</strong> — chief complaint, HPI, vitals. Your attending is listening.</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🔍</span>
+          <span class="tip-text"><strong style="color:rgba(255,255,255,0.6)">Build your diff</strong> — ask "what else could it be?" and push back on your own thinking</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">💊</span>
+          <span class="tip-text"><strong style="color:rgba(255,255,255,0.6)">Drill pharmacology</strong> — mechanism, dosing, side effects, contraindications</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">⚡</span>
+          <span class="tip-text"><strong style="color:rgba(255,255,255,0.6)">High-yield grilling</strong> — "What's the first-line?" / "Walk me through your management"</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🔄</span>
+          <span class="tip-text"><strong style="color:rgba(255,255,255,0.6)">Switch specialties</strong> — different attendings = different lenses on the same problem</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div>
+      <div class="info-section-label">🏥 About This Floor</div>
+      <div class="info-card">
+        <div class="info-card-body">
+          You're on the teaching ward. Every attending here is powered by ElevenLabs AI — same teaching style, unique voice and specialty focus. Rounds never end.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ VIDEO CALL OVERLAY ═══ -->
+<div class="video-call-overlay" id="video-call-overlay">
+  <div class="vc-stage">
+
+    <!-- Loading screen -->
+    <div class="vc-loading" id="vc-loading">
+      <div class="vc-loading-avatar" id="vc-loading-emoji">👩‍⚕️</div>
+      <div>
+        <div style="font-size:18px;font-weight:800;color:#fff;text-align:center;" id="vc-loading-name">Connecting…</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);text-align:center;margin-top:4px;">Setting up live video consultation</div>
+      </div>
+      <div class="vc-loading-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- Doctor video + audio feed -->
+    <video id="doctor-video" autoplay playsinline></video>
+    <audio id="doctor-audio" autoplay></audio>
+
+    <!-- Voice-mode avatar (shown when no D-ID video) -->
+    <div class="vc-voice-avatar" id="vc-voice-avatar">
+      <div class="vc-voice-ring"></div>
+      <div class="vc-voice-ring"></div>
+      <div class="vc-voice-ring"></div>
+      <div class="vc-voice-avatar-face" id="vc-voice-face">👩‍⚕️</div>
+      <div class="vc-voice-info">
+        <div class="vc-voice-info-name" id="vc-voice-name">Dr. Chen</div>
+        <div class="vc-voice-info-spec" id="vc-voice-spec">Internal Medicine</div>
+      </div>
+    </div>
+
+    <!-- Doctor name badge (top-left) -->
+    <div class="vc-doc-badge">
+      <div class="vc-doc-badge-live"></div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#fff;" id="vc-doc-name-badge">Dr. Sarah Chen</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);" id="vc-doc-specialty-badge">Internal Medicine</div>
+      </div>
+    </div>
+
+    <!-- Speaking wave (bottom-left) -->
+    <div class="vc-speaking-wave" id="vc-speaking-wave">
+      <div class="vc-wave-bar"></div>
+      <div class="vc-wave-bar"></div>
+      <div class="vc-wave-bar"></div>
+      <div class="vc-wave-bar"></div>
+      <div class="vc-wave-bar"></div>
+    </div>
+
+    <!-- Student PiP (bottom-right) -->
+    <div class="vc-student-pip" id="vc-student-pip">
+      <video id="student-video" autoplay muted playsinline></video>
+    </div>
+
+    <!-- Transcript panel -->
+    <div class="vc-transcript" id="vc-transcript">
+      <div class="vc-transcript-hd">
+        <span>📝 Consultation Transcript</span>
+        <button onclick="toggleVcTranscript()" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
+      <div class="vc-transcript-body" id="vc-transcript-body"></div>
+    </div>
+
+  </div>
+
+  <!-- Controls bar -->
+  <div class="vc-controls">
+    <button class="vc-btn" id="vc-mute-btn" title="Mute mic" onclick="toggleVcMute()">🎙️</button>
+    <button class="vc-btn" id="vc-cam-btn" title="Toggle your camera" onclick="toggleStudentCam()">📷</button>
+    <button class="vc-btn" title="Doctor not responding? Re-greet" onclick="if(_didAgentId&&_didSessionId)_triggerAgentGreeting(_didAgentId,_didSessionId)">👋</button>
+    <button class="vc-end-btn" title="End consultation" onclick="endVideoCall()">📵</button>
+    <button class="vc-btn" title="Show transcript" onclick="toggleVcTranscript()">📝</button>
+    <button class="vc-btn" title="Reset avatar setup" onclick="endVideoCall();try{localStorage.removeItem('did_agent_'+activeDoctor.id);}catch{}openPresenterPicker();" style="font-size:13px;opacity:0.6;">🔄</button>
+  </div>
+</div>
+
+<!-- ═══ D-ID PRESENTER PICKER ═══ -->
+<div class="avatar-picker-overlay" id="avatar-picker">
+  <div class="avatar-picker-box">
+    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px;">🎭 Setup Video Avatar</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.4);line-height:1.65;margin-bottom:12px;">
+      Choose a D-ID expressive presenter for <span id="ap-doctor-name" style="color:#fff;font-weight:700;">this doctor</span>. The avatar is linked to their ElevenLabs voice — saved for future sessions.
+    </div>
+    <div id="ap-loading" style="text-align:center;padding:24px;color:rgba(255,255,255,0.3);font-size:13px;">⏳ Loading D-ID presenters…</div>
+    <div class="avatar-list" id="ap-list" style="display:none;"></div>
+    <div id="ap-error" style="display:none;margin-top:10px;padding:12px;border-radius:10px;font-size:12px;line-height:1.6;"></div>
+    <!-- Manual presenter ID entry -->
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Presenter ID</div>
+        <input id="ap-manual-id" placeholder="e.g. public_mia_elegant@avt_TJ0Tq5"
+          style="width:100%;background:rgba(255,255,255,0.05);border:1.5px solid rgba(255,255,255,0.1);border-radius:10px;
+                 padding:10px 13px;font-size:12px;color:#fff;font-family:monospace;outline:none;box-sizing:border-box;transition:border-color 0.2s;"
+          oninput="pickedPresenterId=this.value.trim();this.style.borderColor=this.value.trim()?'rgba(0,201,177,0.5)':'rgba(255,255,255,0.1)'" />
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.2);line-height:1.6;">
+        Get Presenter IDs from <strong style="color:rgba(255,255,255,0.35)">studio.d-id.com</strong> → Agents → choose an expressive avatar. The ID format is like <code style="color:rgba(255,255,255,0.3)">public_name@avt_XXXXX</code>.
+      </div>
+    </div>
+    <div id="ap-setup-status" style="display:none;margin-top:12px;padding:12px;border-radius:10px;font-size:12px;line-height:1.7;background:rgba(0,201,177,0.07);border:1px solid rgba(0,201,177,0.2);color:rgba(0,201,177,0.8);"></div>
+    <div id="ap-confirm-error" style="display:none;margin-top:8px;font-size:12px;color:#f44336;"></div>
+    <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+      <button onclick="closeAvatarPicker()" id="ap-cancel-btn" style="padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-family:inherit;font-size:13px;">Cancel</button>
+      <button onclick="confirmPresenter()" id="ap-confirm-btn" style="padding:10px 26px;border-radius:12px;border:none;background:linear-gradient(135deg,#00c9b1,#4f8ef7);color:#050505;font-weight:800;cursor:pointer;font-family:inherit;font-size:13px;">🎬 Setup &amp; Launch</button>
+    </div>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">🔑 API Keys</div>
+    <div class="modal-desc" style="margin-bottom:14px;">
+      Configure your API keys for voice and video features.
+    </div>
+    <!-- ElevenLabs -->
+    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">
+      ElevenLabs Key <span style="font-weight:400;color:rgba(255,255,255,0.2)">(voice AI)</span>
+    </div>
+    <input type="password" class="modal-input" id="modal-api-input" placeholder="sk_... or xi-api-key..." style="margin-bottom:4px;" />
+    <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:14px;">
+      <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" style="color:rgba(0,201,177,0.6);">elevenlabs.io → Settings → API Keys</a>
+    </div>
+    <!-- D-ID -->
+    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">
+      D-ID Key <span style="font-weight:400;color:rgba(255,255,255,0.2)">(video avatar)</span>
+    </div>
+    <input type="password" class="modal-input" id="modal-did-input" placeholder="Paste your D-ID API key…" style="margin-bottom:4px;" />
+    <div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:4px;">
+      <a href="https://studio.d-id.com" target="_blank" style="color:rgba(0,201,177,0.6);">studio.d-id.com → Profile → API Key</a>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" id="modal-cancel">Cancel</button>
+      <button class="modal-save" id="modal-save">Save Keys</button>
+    </div>
+  </div>
+</div>
+
+<script src="livekit-client.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  DOCTORS CONFIG — add/edit agent IDs here
+// ═══════════════════════════════════════════════════════════════
+const DOCTORS = [
+  {
+    id: 'chen',
+    name: 'Dr. Sarah Chen',
+    specialty: 'Internal Medicine',
+    focus: 'General medicine, diagnostics, clinical reasoning',
+    quote: 'Ask me anything — clinical reasoning, diagnostics, treatment plans',
+    emoji: '👩‍⚕️',
+    photo: 'icons/dr-chen.jpg', // ← photo saved in extension/icons/
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_7901ktn3za36f37rey2n8jfh2et2',
+    color: '#00c9b1',
+    isLive: true,
+    heygenAgentId: '55003a619f86438897a62d9dff4a9a71',
+  },
+  {
+    id: 'webb',
+    name: 'Dr. Marcus Webb',
+    specialty: 'Cardiology',
+    focus: 'Cardiac physiology, ECG interpretation, heart failure, arrhythmias',
+    quote: 'Let\'s work through the EKG and cardiac physiology together',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_5101ktn40dswf9cvnn44wh62tv1x',
+    color: '#f44336',
+    isLive: true,
+  },
+  {
+    id: 'patel',
+    name: 'Dr. Aisha Patel',
+    specialty: 'Neurology',
+    focus: 'Neuroanatomy, stroke, seizure disorders, cranial nerves',
+    quote: 'Neurology made clear — anatomy to clinical presentation',
+    emoji: '👩‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_8001ktn417t5f4wapz1k3ehwpdhr',
+    color: '#9b5fe0',
+    isLive: true,
+  },
+  {
+    id: 'okonkwo',
+    name: 'Dr. James Okonkwo',
+    specialty: 'Emergency Medicine',
+    focus: 'ACLS, trauma, toxicology, rapid assessment, critical care',
+    quote: 'High-yield emergencies and rapid assessment protocols',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_6001ktn41v67fjzt1604nadkpzn8',
+    color: '#ff9800',
+    isLive: true,
+  },
+  {
+    id: 'kim',
+    name: 'Dr. Jennifer Kim',
+    specialty: 'Pulmonology',
+    focus: 'Respiratory physiology, asthma, COPD, ventilator management',
+    quote: 'Breathe easy — pulmonary pathophysiology explained',
+    emoji: '👩‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_4601ktn42f47fmwaq21fxv7pafrz',
+    color: '#2196f3',
+    isLive: true,
+  },
+  {
+    id: 'vasquez',
+    name: 'Dr. Elena Vasquez',
+    specialty: 'Biochemistry',
+    focus: 'Metabolic pathways, enzyme kinetics, molecular biology, cell signaling',
+    quote: 'From amino acids to ATP — let\'s trace the pathways together',
+    emoji: '👩‍🔬',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_6001ktn4359qf3vttt4wefctnzw7',
+    color: '#f59e0b',
+    isLive: true,
+  },
+  {
+    id: 'nguyen',
+    name: 'Dr. Lily Nguyen',
+    specialty: 'Dermatology',
+    focus: 'Skin lesion identification, inflammatory conditions, dermatologic pharmacology',
+    quote: 'Skin findings are windows to systemic disease — let\'s read them',
+    emoji: '👩‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_8101ktn43qbsfr8s8tqz2kcamyax',
+    color: '#ec4899',
+    isLive: true,
+  },
+  {
+    id: 'chang',
+    name: 'Dr. Robert Chang',
+    specialty: 'Endocrinology',
+    focus: 'Diabetes, thyroid, adrenal, pituitary, and calcium disorders',
+    quote: 'Hormones run everything — let\'s master the feedback loops',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_7101ktn449bjeevr1r65sz1zpnrr',
+    color: '#14b8a6',
+    isLive: true,
+  },
+  {
+    id: 'osei',
+    name: 'Dr. David Osei',
+    specialty: 'Gastroenterology',
+    focus: 'GI physiology, liver disease, IBD, pancreatic disorders, GI bleeding',
+    quote: 'From mouth to rectum — the GI tract holds no secrets from us',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_9101ktn4587mfp6b80vm7ff3jmpk',
+    color: '#84cc16',
+    isLive: true,
+  },
+  {
+    id: 'diallo',
+    name: 'Dr. Amara Diallo',
+    specialty: 'Genetics',
+    focus: 'Inheritance patterns, chromosomal disorders, molecular genetics, genetic counseling',
+    quote: 'Every disease has a genetic thread — let\'s find it',
+    emoji: '👩‍🔬',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_4601ktn45yvrf3sa1k66rdv9jt0v',
+    color: '#a855f7',
+    isLive: true,
+  },
+  {
+    id: 'torres',
+    name: 'Dr. Michael Torres',
+    specialty: 'Heme / Onc / Immunology',
+    focus: 'Anemias, clotting disorders, lymphomas, leukemias, immune deficiencies',
+    quote: 'Blood and immunity — high-yield and high-stakes',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_2601ktn46nz6fwt8vpwkqv30zvh2',
+    color: '#ef4444',
+    isLive: true,
+  },
+  {
+    id: 'hassan',
+    name: 'Dr. Fatima Hassan',
+    specialty: 'Microbiology',
+    focus: 'Bacteria, viruses, fungi, parasites, antimicrobial mechanisms and resistance',
+    quote: 'Know your bugs, know your drugs — let\'s drill the micro',
+    emoji: '👩‍🔬',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_0101ktn47565ef9rbxnsd1s2jxmq',
+    color: '#22c55e',
+    isLive: true,
+  },
+  {
+    id: 'brooks',
+    name: 'Dr. Nathan Brooks',
+    specialty: 'Musculoskeletal',
+    focus: 'Orthopedics, rheumatology, connective tissue, joint and bone pathology',
+    quote: 'Joints, bones, and connective tissue — the body\'s scaffolding',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_8901ktn483the69azrewtzeq6mwr',
+    color: '#3b82f6',
+    isLive: true,
+  },
+  {
+    id: 'tanaka',
+    name: 'Dr. Yuki Tanaka',
+    specialty: 'Nephrology',
+    focus: 'Renal physiology, acid-base, electrolytes, glomerular disease, AKI and CKD',
+    quote: 'Acid-base and electrolytes — once it clicks, it never leaves',
+    emoji: '👩‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_7201ktn48sn5ehw8gfsamne5bgsh',
+    color: '#06b6d4',
+    isLive: true,
+  },
+  {
+    id: 'morrison',
+    name: 'Dr. Caleb Morrison',
+    specialty: 'Psychiatry',
+    focus: 'Psych disorders, DSM criteria, psychopharmacology, biopsychosocial model',
+    quote: 'Mind and behavior — the most underestimated shelf on boards',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_7101ktn49b2aeddtsr47gmmm86ns',
+    color: '#8b5cf6',
+    isLive: true,
+  },
+  {
+    id: 'reyes',
+    name: 'Dr. Isabel Reyes',
+    specialty: 'Reproduction',
+    focus: 'Embryology, OB/GYN, reproductive endocrinology, fetal development',
+    quote: 'From fertilization to delivery — embryology to obstetrics',
+    emoji: '👩‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_5501ktn49tqff1wvtm14pg04j1eg',
+    color: '#f472b4',
+    isLive: true,
+  },
+  {
+    id: 'carter',
+    name: 'Dr. Daniel Carter',
+    specialty: 'General Surgery',
+    focus: 'Surgical anatomy, pre/post-op care, acute abdomen, hernias, trauma surgery',
+    quote: 'Surgery starts long before the incision — let\'s think through it',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_2601ktn4br2sfrssgqymvb3pgb8f',
+    color: '#64748b',
+    isLive: true,
+  },
+  {
+    id: 'mehta',
+    name: 'Dr. Sanjay Mehta',
+    specialty: 'Pharmacology',
+    focus: 'Drug mechanisms, receptor pharmacology, toxicology, clinical dosing',
+    quote: 'Every drug has a story — mechanism, side effects, and boards pearl',
+    emoji: '👨‍⚕️',
+    agentId: 'agent_5601kthbq0xvf6tam849bas3kgz9',
+    branchId: 'agtbrch_5501ktn4b14jfm8ac6jv4k2rnzab',
+    color: '#fb923c',
+    isLive: true,
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let activeDoctor = DOCTORS[1]; // Dr. Marcus Webb — active agent
+let conversation = null;
+let isConnected = false;
+let isMuted = false;
+let elApiKey = '';
+
+// Load saved API key
+try {
+  elApiKey = localStorage.getItem('el_api_key') || '';
+} catch {}
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER DOCTORS SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function renderDoctors() {
+  const panel = document.querySelector('.doctors-panel');
+  const label = panel.querySelector('.doctors-label');
+  panel.innerHTML = '';
+  panel.appendChild(label);
+
+  DOCTORS.forEach(doc => {
+    const card = document.createElement('div');
+    card.className = 'doctor-card' + (doc.id === activeDoctor.id ? ' active' : '');
+    card.style.setProperty('--doc-color', doc.color);
+    card.dataset.id = doc.id;
+    const avatarContent = doc.photo
+      ? `<img src="${doc.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${doc.emoji}</span>`
+      : doc.emoji;
+    card.innerHTML = `
+      <div class="doctor-avatar" style="${doc.photo ? 'overflow:hidden;padding:0;' : ''}">
+        <div class="doctor-speaking-ring"></div>
+        ${avatarContent}
+      </div>
+      <div class="doctor-info">
+        <div class="doctor-name">${doc.name}</div>
+        <div class="doctor-specialty">${doc.specialty}</div>
+      </div>
+      <div class="on-call-dot" title="${doc.isLive ? 'On call' : 'Voice pending'}"></div>
+    `;
+    card.addEventListener('click', () => selectDoctor(doc.id));
+    panel.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SELECT DOCTOR
+// ═══════════════════════════════════════════════════════════════
+function selectDoctor(docId) {
+  if (isConnected) {
+    if (!confirm(`End current consultation with ${activeDoctor.name} and switch doctors?`)) return;
+    endConversation();
+  }
+  activeDoctor = DOCTORS.find(d => d.id === docId) || DOCTORS[0];
+  renderDoctors();
+  updateActiveDoctorUI();
+  document.getElementById('agent-id-display').textContent = activeDoctor.agentId;
+  document.getElementById('vc-title').textContent = `${activeDoctor.name} — Agent`;
+}
+
+function updateActiveDoctorUI() {
+  const h = document.getElementById('active-doc-header');
+  h.style.setProperty('--active-color', activeDoctor.color);
+  const emojiEl = document.getElementById('active-doc-emoji');
+  const photoEl = document.getElementById('active-doc-photo');
+  if (activeDoctor.photo) {
+    photoEl.src = activeDoctor.photo;
+    photoEl.style.display = 'block';
+    emojiEl.style.display = 'none';
+    photoEl.onerror = () => { photoEl.style.display = 'none'; emojiEl.style.display = ''; };
+  } else {
+    photoEl.style.display = 'none';
+    emojiEl.style.display = '';
+    emojiEl.textContent = activeDoctor.emoji;
+  }
+  document.getElementById('active-doc-name').innerHTML = `Dr. <span>${activeDoctor.name.replace('Dr. ', '')}</span>`;
+  document.getElementById('active-doc-specialty').textContent = `${activeDoctor.specialty} · Attending Physician`;
+  document.getElementById('active-doc-focus').textContent = `"${activeDoctor.quote}"`;
+
+  // Update start button color
+  document.getElementById('main-btn').style.background = '';
+  document.querySelector('.start-btn:not(.end-btn)') &&
+    (document.getElementById('main-btn').style.background = activeDoctor.color);
+
+  // Show/hide D-ID video panel (available for all live doctors)
+  const heygenPanel = document.getElementById('heygen-panel');
+  if (activeDoctor.isLive) {
+    heygenPanel.classList.add('visible');
+    document.getElementById('did-panel-name').textContent = activeDoctor.name;
+    document.getElementById('did-panel-avatar').textContent = activeDoctor.emoji;
+  } else {
+    heygenPanel.classList.remove('visible');
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  CONNECTION STATUS UI
+// ═══════════════════════════════════════════════════════════════
+function setStatus(state, label) {
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  const chip = document.getElementById('status-chip');
+  const chipTxt = document.getElementById('status-text');
+  dot.className = 'connection-dot ' + state;
+  lbl.textContent = label;
+  if (state === 'connected') {
+    chip.className = 'status-chip live';
+    chipTxt.textContent = '● Live';
+    chip.querySelector('.status-chip-dot').style.display = 'none';
+  } else if (state === 'connecting') {
+    chip.className = 'status-chip';
+    chipTxt.textContent = 'Connecting…';
+  } else {
+    chip.className = 'status-chip';
+    chipTxt.textContent = 'Ready';
+    chip.querySelector('.status-chip-dot').style.display = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TRANSCRIPT
+// ═══════════════════════════════════════════════════════════════
+function addMessage(role, text) {
+  const empty = document.getElementById('transcript-empty');
+  if (empty) empty.remove();
+
+  const ta = document.getElementById('transcript');
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + role;
+
+  if (role === 'doctor') {
+    msg.innerHTML = `
+      <div class="msg-avatar">${activeDoctor.emoji}</div>
+      <div class="msg-body">
+        <div class="msg-name">${activeDoctor.name}</div>
+        <div class="msg-text">${escHtml(text)}</div>
+      </div>`;
+  } else {
+    msg.innerHTML = `
+      <div class="msg-body">
+        <div class="msg-name">You</div>
+        <div class="msg-text">${escHtml(text)}</div>
+      </div>
+      <div class="msg-avatar">🧑‍🎓</div>`;
+  }
+  ta.appendChild(msg);
+  ta.scrollTop = ta.scrollHeight;
+}
+
+function addSystemMsg(text) {
+  const empty = document.getElementById('transcript-empty');
+  if (empty) empty.remove();
+  const ta = document.getElementById('transcript');
+  const m = document.createElement('div');
+  m.style.cssText = 'text-align:center;font-size:11px;color:rgba(255,255,255,0.25);padding:8px 0;';
+  m.textContent = text;
+  ta.appendChild(m);
+  ta.scrollTop = ta.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ELEVENLABS CONVERSATIONAL AI — WEBSOCKET IMPLEMENTATION
+// ═══════════════════════════════════════════════════════════════
+class ElevenLabsConvo {
+  constructor(agentId, apiKey, branchId) {
+    this.agentId = agentId;
+    this.apiKey = apiKey;
+    this.branchId = branchId || '';
+    this.ws = null;
+    this.mediaStream = null;
+    this.inputCtx = null;
+    this.outputCtx = null;
+    this.processor = null;
+    this.nextPlayTime = 0;
+    this.isMuted = false;
+    this.sampleRate = 16000;
+    this.onConnect = null;
+    this.onDisconnect = null;
+    this.onError = null;
+    this.onAgentText = null;
+    this.onUserText = null;
+    this.onAgentSpeaking = null;
+    this.onAgentSilent = null;
+    this.onVolumeChange = null;
+    this._agentSpeaking = false;
+    this._analyser = null;
+    this._volBuffer = null;
+  }
+
+  async start() {
+    // 1. Get microphone
+    this.mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: this.sampleRate, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+
+    // 2. Set up audio processing for input
+    this.inputCtx = new AudioContext({ sampleRate: this.sampleRate });
+    this.outputCtx = new AudioContext();
+    this.nextPlayTime = this.outputCtx.currentTime;
+
+    const source = this.inputCtx.createMediaStreamSource(this.mediaStream);
+    this._analyser = this.inputCtx.createAnalyser();
+    this._analyser.fftSize = 256;
+    this._volBuffer = new Uint8Array(this._analyser.frequencyBinCount);
+    source.connect(this._analyser);
+
+    this.processor = this.inputCtx.createScriptProcessor(4096, 1, 1);
+    source.connect(this.processor);
+    this.processor.connect(this.inputCtx.destination);
+
+    this.processor.onaudioprocess = (e) => {
+      if (this.isMuted || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      const input = e.inputBuffer.getChannelData(0);
+      const pcm16 = new Int16Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        pcm16[i] = Math.max(-32768, Math.min(32767, input[i] * 32768));
+      }
+      const b64 = this._arrayToBase64(new Uint8Array(pcm16.buffer));
+      this.ws.send(JSON.stringify({ user_audio_chunk: b64 }));
+    };
+
+    // Volume meter
+    this._volInterval = setInterval(() => {
+      if (this._analyser && this.onVolumeChange) {
+        this._analyser.getByteFrequencyData(this._volBuffer);
+        const avg = this._volBuffer.slice(0, 32).reduce((a, b) => a + b, 0) / 32;
+        this.onVolumeChange(avg / 255);
+      }
+    }, 80);
+
+    // 3. Connect WebSocket
+    // ElevenLabs uses xi-api-key query param for browser WS auth
+    const branchParam = this.branchId ? `&branch_id=${encodeURIComponent(this.branchId)}` : '';
+    const baseUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${encodeURIComponent(this.agentId)}${branchParam}`;
+    const wsUrl = this.apiKey
+      ? `${baseUrl}&xi-api-key=${encodeURIComponent(this.apiKey)}`
+      : baseUrl;
+
+    console.log('[EL] Connecting WS to agent:', this.agentId, this.branchId ? `branch: ${this.branchId}` : '(no branch)', 'auth:', !!this.apiKey);
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log('[EL] WS open ✓ — waiting for conversation_initiation_metadata…');
+      // Resume AudioContext in case Chrome suspended it
+      if (this.outputCtx && this.outputCtx.state === 'suspended') this.outputCtx.resume();
+      if (this.inputCtx  && this.inputCtx.state  === 'suspended') this.inputCtx.resume();
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        console.log('[EL] ←', msg.type, msg.type === 'audio' ? '(audio chunk)' : JSON.stringify(msg).slice(0,120));
+        this._handleMessage(msg);
+      } catch (e) {
+        console.warn('ElevenLabs WS parse error:', e);
+      }
+    };
+
+    this.ws.onerror = (err) => {
+      console.error('ElevenLabs WS error:', err);
+      if (this.onError) this.onError('Connection error — check your agent ID and API key');
+    };
+
+    this.ws.onclose = (event) => {
+      console.log(`[EL] WS closed — code: ${event.code}, reason: "${event.reason || '(none)'}"`);
+      isConnected = false;
+      setStatus('', 'Disconnected');
+      if (this.onDisconnect) this.onDisconnect(event.code, event.reason);
+    };
+  }
+
+  _handleMessage(msg) {
+    switch (msg.type) {
+      case 'conversation_initiation_metadata':
+        console.log('[EL] Session ready ✓ — conversation_id:', msg.conversation_initiation_metadata_event?.conversation_id);
+        // Signal ready now that ElevenLabs has accepted the session
+        if (this.onConnect) this.onConnect();
+        break;
+
+      case 'audio':
+        if (msg.audio_event?.audio_base_64) {
+          this._playAudioChunk(msg.audio_event.audio_base_64);
+          if (!this._agentSpeaking) {
+            this._agentSpeaking = true;
+            if (this.onAgentSpeaking) this.onAgentSpeaking();
+          }
+        }
+        break;
+
+      case 'agent_response':
+        if (msg.agent_response_event?.agent_response) {
+          if (this.onAgentText) this.onAgentText(msg.agent_response_event.agent_response);
+        }
+        break;
+
+      case 'user_transcript':
+        if (msg.user_transcription_event?.user_transcript) {
+          if (this.onUserText) this.onUserText(msg.user_transcription_event.user_transcript);
+        }
+        break;
+
+      case 'interruption':
+        // User interrupted — stop playing audio
+        this.nextPlayTime = this.outputCtx.currentTime;
+        this._agentSpeaking = false;
+        if (this.onAgentSilent) this.onAgentSilent();
+        break;
+
+      case 'ping':
+        if (this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: 'pong', event_id: msg.ping_event?.event_id }));
+        }
+        break;
+
+      case 'agent_response_correction':
+        // Agent corrected its response — ignore for display
+        break;
+
+      default:
+        // Check for silence markers
+        if (msg.type === 'agent_response' && this._agentSpeaking) {
+          this._agentSpeaking = false;
+          if (this.onAgentSilent) this.onAgentSilent();
+        }
+        break;
+    }
+  }
+
+  _playAudioChunk(b64) {
+    try {
+      // Ensure AudioContext is running (Chrome may suspend it)
+      if (this.outputCtx && this.outputCtx.state === 'suspended') {
+        this.outputCtx.resume();
+      }
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      // ElevenLabs sends PCM 16-bit signed little-endian at 16kHz
+      const pcm16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768.0;
+
+      const buffer = this.outputCtx.createBuffer(1, float32.length, 16000);
+      buffer.copyToChannel(float32, 0);
+
+      const src = this.outputCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(this.outputCtx.destination);
+
+      const now = this.outputCtx.currentTime;
+      const startAt = Math.max(now, this.nextPlayTime);
+      src.start(startAt);
+      this.nextPlayTime = startAt + buffer.duration;
+
+      src.onended = () => {
+        if (this.nextPlayTime <= this.outputCtx.currentTime + 0.05) {
+          this._agentSpeaking = false;
+          if (this.onAgentSilent) this.onAgentSilent();
+        }
+      };
+    } catch (e) {
+      console.warn('Audio decode error:', e);
+    }
+  }
+
+  _arrayToBase64(uint8) {
+    let bin = '';
+    const len = uint8.byteLength;
+    for (let i = 0; i < len; i++) bin += String.fromCharCode(uint8[i]);
+    return btoa(bin);
+  }
+
+  setMuted(muted) {
+    this.isMuted = muted;
+  }
+
+  stop() {
+    if (this._volInterval) clearInterval(this._volInterval);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.close(1000, 'User ended session');
+    if (this.processor) { this.processor.disconnect(); this.processor = null; }
+    if (this.inputCtx) { this.inputCtx.close(); this.inputCtx = null; }
+    if (this.outputCtx) { this.outputCtx.close(); this.outputCtx = null; }
+    if (this.mediaStream) { this.mediaStream.getTracks().forEach(t => t.stop()); this.mediaStream = null; }
+    this._agentSpeaking = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  START / END CONVERSATION
+// ═══════════════════════════════════════════════════════════════
+async function startConversation() {
+  if (!activeDoctor.agentId) {
+    addSystemMsg(`⚠️ ${activeDoctor.name} doesn't have a voice agent assigned yet. Create one in ElevenLabs and add the agent ID to roundroom.html.`);
+    return;
+  }
+  const btn = document.getElementById('main-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Connecting…';
+  setStatus('connecting', 'Connecting…');
+
+  try {
+    conversation = new ElevenLabsConvo(activeDoctor.agentId, elApiKey, activeDoctor.branchId);
+
+    conversation.onConnect = () => {
+      btn.disabled = false;
+      btn.textContent = '⏹ End Consultation';
+      btn.className = 'start-btn end-btn';
+      btn.onclick = endConversation;
+      document.getElementById('mute-btn').style.display = 'flex';
+      document.getElementById('paging-text').textContent = `PAGING ${activeDoctor.name.toUpperCase()} · IN SESSION`;
+      addSystemMsg(`🏥 You're now on rounds with ${activeDoctor.name}`);
+    };
+
+    conversation.onDisconnect = (code, reason) => {
+      handleDisconnected(`Session ended${reason ? ': ' + reason : ''}`);
+    };
+
+    conversation.onError = (errMsg) => {
+      handleDisconnected(errMsg);
+      addSystemMsg('⚠️ ' + errMsg);
+    };
+
+    conversation.onAgentText = (text) => {
+      addMessage('doctor', text);
+    };
+
+    conversation.onUserText = (text) => {
+      addMessage('user', text);
+    };
+
+    conversation.onAgentSpeaking = () => {
+      document.getElementById('active-doc-header').classList.add('speaking-active');
+      document.querySelectorAll('.doctor-card').forEach(c => {
+        if (c.dataset.id === activeDoctor.id) c.classList.add('speaking');
+      });
+    };
+
+    conversation.onAgentSilent = () => {
+      document.getElementById('active-doc-header').classList.remove('speaking-active');
+      document.querySelectorAll('.doctor-card').forEach(c => c.classList.remove('speaking'));
+    };
+
+    conversation.onVolumeChange = (vol) => {
+      const bars = document.querySelectorAll('.vol-bar-segment');
+      const active = Math.round(vol * bars.length);
+      bars.forEach((b, i) => b.classList.toggle('active', i < active));
+    };
+
+    await conversation.start();
+
+  } catch (err) {
+    handleDisconnected(err.message);
+    addSystemMsg('⚠️ Could not start consultation: ' + err.message);
+    console.error(err);
+  }
+}
+
+function endConversation() {
+  if (conversation) { conversation.stop(); conversation = null; }
+  handleDisconnected('Consultation ended');
+}
+
+function handleDisconnected(msg) {
+  isConnected = false;
+  isMuted = false;
+  const btn = document.getElementById('main-btn');
+  btn.disabled = false;
+  btn.textContent = '▶ Start Consultation';
+  btn.className = 'start-btn';
+  btn.style.background = activeDoctor.color;
+  btn.onclick = startConversation;
+  document.getElementById('mute-btn').style.display = 'none';
+  document.getElementById('mute-btn').className = 'ctrl-btn';
+  document.getElementById('active-doc-header').classList.remove('speaking-active');
+  document.querySelectorAll('.doctor-card').forEach(c => c.classList.remove('speaking'));
+  document.querySelectorAll('.vol-bar-segment').forEach(b => b.classList.remove('active'));
+  setStatus('', 'Standing by');
+  document.getElementById('paging-text').textContent = 'GRAND ROUNDS IN SESSION';
+  if (msg) addSystemMsg('🚪 ' + msg);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════════
+// Note: main-btn click listener is set below in HeyGen section (routes video vs voice)
+
+document.getElementById('mute-btn').addEventListener('click', () => {
+  isMuted = !isMuted;
+  if (conversation) conversation.setMuted(isMuted);
+  const btn = document.getElementById('mute-btn');
+  btn.className = 'ctrl-btn' + (isMuted ? ' muted' : '');
+  btn.textContent = isMuted ? '🔇' : '🎙️';
+  btn.title = isMuted ? 'Unmute microphone' : 'Mute microphone';
+});
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  const ta = document.getElementById('transcript');
+  ta.innerHTML = `
+    <div class="transcript-empty" id="transcript-empty">
+      <span class="transcript-empty-icon">🩺</span>
+      <div class="transcript-empty-title">Start your consultation</div>
+      <div class="transcript-empty-hint">Select an attending and press <strong>Start Consultation</strong>.</div>
+    </div>`;
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  API KEY MODAL
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('api-key-btn').addEventListener('click', () => {
+  document.getElementById('modal-api-input').value = elApiKey;
+  document.getElementById('modal-did-input').value = didApiKey;
+  document.getElementById('modal').classList.add('open');
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal-save').addEventListener('click', () => {
+  elApiKey   = document.getElementById('modal-api-input').value.trim();
+  didApiKey  = document.getElementById('modal-did-input').value.trim();
+  try {
+    localStorage.setItem('el_api_key',  elApiKey);
+    localStorage.setItem('did_api_key', didApiKey);
+  } catch {}
+  document.getElementById('modal').classList.remove('open');
+  showToast('✓ Keys saved');
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════════
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const old = document.querySelector('.toast-rr');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = 'toast-rr';
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;border:1px solid rgba(0,201,177,0.35);color:#00c9b1;padding:9px 18px;border-radius:24px;font-size:13px;font-weight:600;z-index:999;pointer-events:none;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), 2800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SEARCH / FILTER
+// ═══════════════════════════════════════════════════════════════
+function filterDoctors(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.doctor-card').forEach(card => {
+    const name = card.querySelector('.doctor-name').textContent.toLowerCase();
+    const spec = card.querySelector('.doctor-specialty').textContent.toLowerCase();
+    card.style.display = (!q || name.includes(q) || spec.includes(q)) ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+renderDoctors();
+updateActiveDoctorUI();
+document.getElementById('agent-id-display').textContent = activeDoctor.agentId;
+document.getElementById('vc-title').textContent = `${activeDoctor.name} — Agent`;
+document.getElementById('main-btn').style.background = activeDoctor.color;
+
+// ═══════════════════════════════════════════════════════════════
+//  D-ID — STREAMING AGENTS API + ELEVENLABS INTEGRATION
+//  Docs: https://docs.d-id.com
+// ═══════════════════════════════════════════════════════════════
+
+const DID_BASE = 'https://api.d-id.com';
+
+let didApiKey = '';
+try { didApiKey = localStorage.getItem('did_api_key') || ''; } catch {}
+
+let vcMuted = false;
+let vcTranscriptVisible = false;
+let studentStream = null;
+let pickedPresenterId = null;
+
+// Active session state
+let _livekitRoom = null;   // LiveKit Room instance
+let _didSessionId = null;  // D-ID V2 session ID
+let _didAgentId = null;    // D-ID agent ID for current session
+
+// ── D-ID API class ──
+class DIDAgent {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+  }
+
+  _hdr() {
+    const auth = this.apiKey.startsWith('Basic ')
+      ? this.apiKey
+      : 'Basic ' + btoa(this.apiKey + ':');
+    return { 'Authorization': auth, 'Content-Type': 'application/json', 'Accept': 'application/json' };
+  }
+
+  async listPresenters() {
+    // GET /expressives/avatars — V4 expressive avatars
+    const r = await fetch(`${DID_BASE}/expressives/avatars?limit=50`, { headers: this._hdr() });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.description || d.message || `HTTP ${r.status}`);
+    return d.avatars || [];
+  }
+
+  async storeElevenLabsSecret(elevenLabsApiKey) {
+    const r = await fetch(`${DID_BASE}/secrets`, {
+      method: 'POST',
+      headers: this._hdr(),
+      body: JSON.stringify({ type: 'api_key', provider: 'elevenlabs', api_key: elevenLabsApiKey })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.description || d.message || `HTTP ${r.status}`);
+    return d.id; // secret_id
+  }
+
+  async createElevenLabsAgent(doctorName, elevenLabsAgentId, presenterId, secretId) {
+    const r = await fetch(`${DID_BASE}/v2/agents/integrations/elevenlabs`, {
+      method: 'POST',
+      headers: this._hdr(),
+      body: JSON.stringify({
+        preview_name: doctorName,
+        presenter: { type: 'expressive', presenter_id: presenterId },
+        external_agent: { type: 'elevenlabs', agent_id: elevenLabsAgentId, secret_id: secretId }
+      })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.description || d.message || `HTTP ${r.status}`);
+    return { agentId: d.id, clientKey: d.client_key };
+  }
+
+  async pollAgentReady(agentId, maxMs = 90000) {
+    const deadline = Date.now() + maxMs;
+    while (Date.now() < deadline) {
+      const r = await fetch(`${DID_BASE}/agents/${agentId}`, { headers: this._hdr() });
+      const d = await r.json().catch(() => ({}));
+      if (d.status === 'done') return d;
+      if (d.status === 'error') throw new Error('D-ID agent creation failed: ' + (d.error || d.message));
+      await new Promise(res => setTimeout(res, 3000));
+    }
+    throw new Error('Timed out waiting for D-ID agent to be ready (90s)');
+  }
+
+  // V2 session — used by Expressive (ElevenLabs-backed) agents
+  async createV2Session(agentId) {
+    const r = await fetch(`${DID_BASE}/v2/agents/${agentId}/sessions`, {
+      method: 'POST',
+      headers: this._hdr()
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.description || d.message || `HTTP ${r.status}`);
+    // Returns: { id, session_url, session_token }
+    return d;
+  }
+
+  async deleteV2Session(agentId, sessionId) {
+    await fetch(`${DID_BASE}/v2/agents/${agentId}/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: this._hdr()
+    }).catch(() => {});
+  }
+}
+
+// ── Video Call Flow ──────────────────────────────────────────
+
+async function startConversationOrVideo() {
+  // PATH B: Voice consultation with animated avatar (D-ID video disabled — see launchVideoCall for Path A)
+  if (activeDoctor.isLive) {
+    await launchVoiceCall();
+  } else {
+    startConversation();
+  }
+}
+
+// Re-wire the main button
+document.getElementById('main-btn').removeEventListener('click', startConversation);
+document.getElementById('main-btn').addEventListener('click', startConversationOrVideo);
+
+// ── PATH B: Voice consultation in the video call overlay ──────────────────
+// Skips D-ID entirely. Shows animated doctor avatar + ElevenLabs voice.
+// PATH A (D-ID video) is preserved in launchVideoCall() below for future use.
+async function launchVoiceCall() {
+  vcEnding = false;
+  const overlay = document.getElementById('video-call-overlay');
+  overlay.classList.add('active');
+
+  // Populate top badges
+  document.getElementById('vc-doc-name-badge').textContent     = activeDoctor.name;
+  document.getElementById('vc-doc-specialty-badge').textContent = activeDoctor.specialty;
+
+  // Populate voice avatar
+  document.getElementById('vc-voice-face').textContent = activeDoctor.emoji;
+  document.getElementById('vc-voice-name').textContent = activeDoctor.name;
+  document.getElementById('vc-voice-spec').textContent  = activeDoctor.specialty;
+  document.getElementById('vc-voice-avatar').classList.add('visible');
+
+  // Show loading
+  const loadingEl = document.getElementById('vc-loading');
+  loadingEl.style.display = 'flex';
+  document.getElementById('vc-loading-name').textContent  = `Connecting to ${activeDoctor.name}…`;
+  document.getElementById('vc-loading-emoji').textContent = activeDoctor.emoji;
+
+  if (!elApiKey) {
+    _showVcError('ElevenLabs API key required.\nClick 🔑 in the top bar and enter your key.');
+    return;
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const vc = new ElevenLabsConvo(activeDoctor.agentId, elApiKey, activeDoctor.branchId);
+
+      vc.onConnect = () => {
+        conversation = vc;
+        loadingEl.style.display = 'none';
+        setStatus('connected', `Voice · ${activeDoctor.name}`);
+        isConnected = true;
+        _setVcMicStatus(true);
+        resolve();
+      };
+
+      vc.onDisconnect = (code, reason) => {
+        if (isConnected && !vcEnding) {
+          _showVcError(`Disconnected${reason ? ': ' + reason : ''}.\nTry ending and restarting the consultation.`);
+        }
+      };
+
+      vc.onError = (errMsg) => reject(new Error(errMsg));
+
+      vc.onAgentText = (text) => {
+        addVcMessage('doctor', text);
+        document.getElementById('vc-speaking-wave').classList.add('active');
+        document.getElementById('vc-voice-avatar').classList.add('speaking');
+      };
+
+      vc.onUserText = (text) => addVcMessage('user', text);
+
+      vc.onAgentSpeaking = () => {
+        document.getElementById('vc-speaking-wave').classList.add('active');
+        document.getElementById('vc-voice-avatar').classList.add('speaking');
+      };
+
+      vc.onAgentSilent = () => {
+        document.getElementById('vc-speaking-wave').classList.remove('active');
+        document.getElementById('vc-voice-avatar').classList.remove('speaking');
+      };
+
+      vc.start().catch(reject);
+      setTimeout(() => reject(new Error('Connection timed out (20s).\nCheck your ElevenLabs API key.')), 20000);
+    });
+  } catch (err) {
+    _showVcError(err.message);
+    console.error('[Voice call]', err);
+  }
+}
+
+let vcEnding = false;
+
+// ── PATH A: D-ID video avatar (requires paid D-ID plan) ───────────────────
+async function launchVideoCall(agentId) {
+  // Check LiveKit SDK is loaded
+  if (typeof LivekitClient === 'undefined') {
+    _showVcError(
+      'LiveKit client not loaded.\n\n' +
+      'Download livekit-client.umd.min.js and place it in the extension folder:\n' +
+      'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js'
+    );
+    document.getElementById('video-call-overlay').classList.add('active');
+    document.getElementById('vc-loading').style.display = 'flex';
+    return;
+  }
+
+  const overlay = document.getElementById('video-call-overlay');
+  overlay.classList.add('active');
+
+  document.getElementById('vc-doc-name-badge').textContent      = activeDoctor.name;
+  document.getElementById('vc-doc-specialty-badge').textContent  = activeDoctor.specialty;
+
+  const loadingEl = document.getElementById('vc-loading');
+  loadingEl.style.display = 'flex';
+  document.getElementById('vc-loading-name').textContent = `Connecting to ${activeDoctor.name}…`;
+  document.getElementById('vc-loading-emoji').textContent = activeDoctor.emoji;
+
+  try {
+    const did = new DIDAgent(didApiKey);
+    _didAgentId = agentId;
+
+    // 1. Create V2 session (required for Expressive / ElevenLabs-backed agents)
+    _updateVcStatus('Creating video session…');
+    const session = await did.createV2Session(agentId);
+    _didSessionId = session.id;
+    console.log('[D-ID] Session created:', session.id, '| LiveKit URL:', session.session_url?.split('?')[0]);
+
+    // 2. Connect via LiveKit
+    _updateVcStatus('Joining video room…');
+    const room = new LivekitClient.Room({
+      adaptiveStream: true,
+      dynacast: true,
+    });
+    _livekitRoom = room;
+
+    const videoEl = document.getElementById('doctor-video');
+    const audioEl = document.getElementById('doctor-audio');
+
+    // Handle tracks published by the D-ID agent
+    // Only subscribe to video — ElevenLabs WebSocket handles audio separately
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === LivekitClient.Track.Kind.Video) {
+        track.attach(videoEl);
+        videoEl.style.display = 'block';
+      }
+      // D-ID audio track intentionally ignored — ElevenLabs WebSocket provides voice
+    });
+
+    room.on(LivekitClient.RoomEvent.Connected, async () => {
+      // Video face is up — now start ElevenLabs conversation directly
+      // (ElevenLabs WebSocket handles mic/STT/LLM/TTS; D-ID provides the face)
+      _updateVcStatus('Starting conversation…');
+      try {
+        await _startVcElevenLabs();
+      } catch (elErr) {
+        console.warn('[VC] ElevenLabs start failed:', elErr);
+        // Still show video even if EL fails
+        loadingEl.style.display = 'none';
+        setStatus('connected', `Video · ${activeDoctor.name}`);
+        isConnected = true;
+        showToast('⚠️ Voice failed — try re-setup or use voice-only mode');
+      }
+      tryStudentCam();
+    });
+
+    room.on(LivekitClient.RoomEvent.Disconnected, () => {
+      if (isConnected) _showVcError('Connection lost. Try again.');
+    });
+
+    room.on(LivekitClient.RoomEvent.ConnectionError, (err) => {
+      console.error('[LiveKit] Connection error:', err);
+      _showVcError(`LiveKit error: ${err?.message || err}\n\nHost: ${livekitDomain}\n\nClick "Voice Only" to continue without video.`);
+    });
+
+    // 3. Connect to the LiveKit room
+    await room.connect(session.session_url, session.session_token);
+
+    // Fallback timeout
+    // Show the session URL domain so we can debug CSP issues
+    const livekitDomain = (() => { try { return new URL(session.session_url).hostname; } catch { return '?'; }})();
+    _updateVcStatus(`Connecting to ${livekitDomain}…`);
+
+    setTimeout(() => {
+      if (_livekitRoom === room && !isConnected) {
+        _showVcError(
+          `LiveKit room never connected (10s timeout).\n\nLiveKit host: ${livekitDomain}\n\n` +
+          `Likely cause: D-ID free plan credits exhausted, or this domain is blocked.\n` +
+          `Check studio.d-id.com for remaining credits.\n\n` +
+          `👇 Voice Only works without D-ID — click it to continue.`
+        );
+      }
+    }, 10000);
+
+  } catch (err) {
+    _showVcError(err.message);
+    console.error('D-ID V2 session error:', err);
+  }
+}
+
+function _updateVcStatus(msg) {
+  const el = document.getElementById('vc-loading-name');
+  if (el) el.textContent = msg;
+}
+
+function _showVcError(msg) {
+  const loading = document.getElementById('vc-loading');
+  loading.innerHTML = `
+    <div style="font-size:40px;">⚠️</div>
+    <div style="font-size:15px;font-weight:700;color:#f44336;margin-bottom:8px;">Video Connection Failed</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.35);max-width:340px;text-align:center;line-height:1.7;
+                font-family:monospace;background:rgba(0,0,0,0.3);padding:10px 14px;border-radius:8px;">${escHtml(msg)}</div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center;">
+      <button onclick="endVideoCall();openPresenterPicker();"
+        style="padding:10px 20px;border-radius:12px;border:none;background:rgba(0,201,177,0.2);color:#00c9b1;
+               font-size:13px;cursor:pointer;font-family:inherit;font-weight:700;">🔄 Re-setup Avatar</button>
+      <button onclick="endVideoCall();startConversation();"
+        style="padding:10px 20px;border-radius:12px;border:none;background:rgba(79,142,247,0.15);color:#4f8ef7;
+               font-size:13px;cursor:pointer;font-family:inherit;font-weight:700;">🎙️ Voice Only</button>
+      <button onclick="endVideoCall()"
+        style="padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);
+               background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.4);font-size:13px;cursor:pointer;font-family:inherit;">Close</button>
+    </div>`;
+  loading.style.display = 'flex';
+}
+
+// Show mic status in the VC UI
+function _setVcMicStatus(on) {
+  const btn = document.getElementById('vc-mute-btn');
+  if (btn) {
+    btn.textContent = on ? '🎙️' : '🚫';
+    btn.classList.toggle('muted', !on);
+  }
+}
+
+// Ask the D-ID/ElevenLabs agent to speak first via the REST messages API
+async function _triggerAgentGreeting(agentId, sessionId) {
+  try {
+    const did = new DIDAgent(didApiKey);
+    // Send a silent system-style nudge so ElevenLabs opens with a greeting
+    const greetBody = {
+      messages: [{
+        role: 'user',
+        content: `Hello Doctor, please introduce yourself to me and ask me what I would like to discuss today.`
+      }]
+    };
+    const r = await fetch(`${DID_BASE}/v2/agents/${agentId}/sessions/${sessionId}/chat`, {
+      method: 'POST',
+      headers: did._hdr(),
+      body: JSON.stringify(greetBody)
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.warn('[D-ID] Greeting trigger failed (chat):', d.description || d.message || r.status);
+      // Try the older /messages endpoint as fallback
+      await fetch(`${DID_BASE}/v2/agents/${agentId}/sessions/${sessionId}/messages`, {
+        method: 'POST',
+        headers: did._hdr(),
+        body: JSON.stringify(greetBody)
+      }).catch(() => {});
+    } else {
+      console.log('[D-ID] Greeting triggered ✓');
+    }
+  } catch (e) {
+    console.warn('[D-ID] Greeting trigger error:', e.message);
+  }
+}
+
+// Start ElevenLabs WebSocket directly for conversation (mic, STT, TTS)
+// D-ID provides the video face; ElevenLabs provides the voice and brain.
+async function _startVcElevenLabs() {
+  const loadingEl = document.getElementById('vc-loading');
+
+  if (!elApiKey) {
+    loadingEl.style.display = 'none';
+    setStatus('connected', `Video · ${activeDoctor.name}`);
+    isConnected = true;
+    showToast('⚠️ ElevenLabs key missing — enter it in 🔑 for voice');
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    const vc = new ElevenLabsConvo(activeDoctor.agentId, elApiKey, activeDoctor.branchId);
+
+    vc.onConnect = () => {
+      conversation = vc;
+      loadingEl.style.display = 'none';
+      setStatus('connected', `Video · ${activeDoctor.name}`);
+      isConnected = true;
+      _setVcMicStatus(true);
+      resolve();
+    };
+
+    vc.onDisconnect = (code, reason) => {
+      if (isConnected) {
+        // Only show error if we didn't intentionally end the call
+        if (_livekitRoom) _showVcError('Voice disconnected. Try ending the call and reconnecting.');
+      }
+    };
+
+    vc.onError = (errMsg) => {
+      reject(new Error(errMsg));
+    };
+
+    vc.onAgentText = (text) => {
+      addVcMessage('doctor', text);
+      document.getElementById('vc-speaking-wave').classList.add('active');
+    };
+
+    vc.onUserText = (text) => addVcMessage('user', text);
+
+    vc.onAgentSpeaking = () => {
+      document.getElementById('vc-speaking-wave').classList.add('active');
+    };
+
+    vc.onAgentSilent = () => {
+      document.getElementById('vc-speaking-wave').classList.remove('active');
+    };
+
+    vc.start().catch(reject);
+
+    // Reject after 20s if onConnect never fires
+    setTimeout(() => reject(new Error('ElevenLabs connection timed out (20s)')), 20000);
+  });
+}
+
+function endVideoCall() {
+  vcEnding = true;
+  if (_livekitRoom) { _livekitRoom.disconnect(); _livekitRoom = null; }
+  if (_didSessionId && _didAgentId) {
+    new DIDAgent(didApiKey).deleteV2Session(_didAgentId, _didSessionId);
+    _didSessionId = _didAgentId = null;
+  }
+  if (conversation) { conversation.stop(); conversation = null; }
+  if (studentStream) { studentStream.getTracks().forEach(t => t.stop()); studentStream = null; }
+  // Reset voice avatar
+  const va = document.getElementById('vc-voice-avatar');
+  if (va) { va.classList.remove('visible', 'speaking'); }
+
+  const videoEl = document.getElementById('doctor-video');
+  const audioEl = document.getElementById('doctor-audio');
+  if (videoEl) { videoEl.srcObject = null; videoEl.style.display = 'none'; }
+  if (audioEl) audioEl.srcObject = null;
+
+  document.getElementById('video-call-overlay').classList.remove('active');
+  document.getElementById('vc-transcript-body').innerHTML = '';
+  document.getElementById('vc-student-pip').classList.remove('visible');
+  document.getElementById('vc-speaking-wave').classList.remove('active');
+  vcTranscriptVisible = false;
+  document.getElementById('vc-transcript').classList.remove('open');
+  isConnected = false;
+  vcEnding = false;
+  handleDisconnected('Video consultation ended');
+}
+
+function toggleVcMute() {
+  vcMuted = !vcMuted;
+  // ElevenLabs WebSocket handles mic — mute through it
+  if (conversation) conversation.setMuted(vcMuted);
+  const btn = document.getElementById('vc-mute-btn');
+  btn.textContent = vcMuted ? '🔇' : '🎙️';
+  btn.classList.toggle('muted', vcMuted);
+}
+
+function toggleVcTranscript() {
+  vcTranscriptVisible = !vcTranscriptVisible;
+  document.getElementById('vc-transcript').classList.toggle('open', vcTranscriptVisible);
+}
+
+async function tryStudentCam() {
+  try {
+    studentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    document.getElementById('student-video').srcObject = studentStream;
+    document.getElementById('vc-student-pip').classList.add('visible');
+  } catch { /* camera unavailable */ }
+}
+
+function toggleStudentCam() {
+  if (studentStream) {
+    document.getElementById('vc-student-pip').classList.toggle('visible');
+  } else {
+    tryStudentCam();
+  }
+}
+
+function addVcMessage(role, text) {
+  if (role === 'system') return;
+  const body = document.getElementById('vc-transcript-body');
+  const m = document.createElement('div');
+  m.className = `vcm ${role === 'doctor' ? 'doc' : 'usr'}`;
+  m.innerHTML = `
+    <div class="vcm-name">${role === 'doctor' ? activeDoctor.name : 'You'}</div>
+    <div class="vcm-bubble">${escHtml(text)}</div>`;
+  body.appendChild(m);
+  body.scrollTop = body.scrollHeight;
+}
+
+// ── Presenter Picker (D-ID setup) ────────────────────────────
+
+async function openPresenterPicker() {
+  const picker = document.getElementById('avatar-picker');
+  picker.classList.add('open');
+
+  document.getElementById('ap-doctor-name').textContent = activeDoctor.name;
+  document.getElementById('ap-loading').style.display = 'block';
+  document.getElementById('ap-list').style.display = 'none';
+  document.getElementById('ap-error').style.display = 'none';
+  document.getElementById('ap-setup-status').style.display = 'none';
+  document.getElementById('ap-confirm-error').style.display = 'none';
+  document.getElementById('ap-manual-id').value = '';
+  document.getElementById('ap-confirm-btn').disabled = false;
+  document.getElementById('ap-confirm-btn').textContent = '🎬 Setup & Launch';
+  pickedPresenterId = null;
+
+  // Try to load D-ID presenters
+  try {
+    const did = new DIDAgent(didApiKey);
+    const presenters = await did.listPresenters();
+    document.getElementById('ap-loading').style.display = 'none';
+
+    if (presenters.length) {
+      const listEl = document.getElementById('ap-list');
+      listEl.style.display = 'flex';
+      listEl.innerHTML = `<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">D-ID Expressive Presenters</div>`;
+
+      presenters.forEach((p, idx) => {
+        const item = document.createElement('div');
+        const pid = p.id; // V4 avatar ID (e.g. "avt_TJ0Tq5")
+        item.className = 'avatar-item' + (idx === 0 ? ' selected' : '');
+        if (idx === 0) {
+          pickedPresenterId = pid;
+          document.getElementById('ap-manual-id').value = pid;
+        }
+        item.innerHTML = `
+          <div class="avatar-thumb">
+            ${p.thumbnail_url || p.preview_image_url
+              ? `<img src="${p.thumbnail_url || p.preview_image_url}" onerror="this.parentNode.textContent='🧑‍⚕️'">`
+              : '🧑‍⚕️'}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);">${escHtml(p.name || pid)}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.25);font-family:monospace;">${escHtml(pid)}</div>
+          </div>`;
+        item.addEventListener('click', () => {
+          listEl.querySelectorAll('.avatar-item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+          pickedPresenterId = pid;
+          document.getElementById('ap-manual-id').value = pid;
+        });
+        listEl.appendChild(item);
+      });
+    }
+  } catch (err) {
+    document.getElementById('ap-loading').style.display = 'none';
+    _showApError(`Could not load D-ID presenters: ${err.message}\nEnter a Presenter ID manually below.`);
+  }
+}
+
+function _showApError(msg) {
+  const el = document.getElementById('ap-error');
+  el.style.cssText = 'display:block;margin-top:10px;padding:12px;border-radius:10px;font-size:11px;line-height:1.6;background:rgba(244,67,54,0.08);border:1px solid rgba(244,67,54,0.2);color:#f44336;white-space:pre-wrap;';
+  el.textContent = msg;
+}
+
+function _showApStatus(msg) {
+  const el = document.getElementById('ap-setup-status');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function closeAvatarPicker() {
+  document.getElementById('avatar-picker').classList.remove('open');
+}
+
+async function confirmPresenter() {
+  const manualVal = document.getElementById('ap-manual-id').value.trim();
+  if (manualVal) pickedPresenterId = manualVal;
+
+  const errEl = document.getElementById('ap-confirm-error');
+  if (!pickedPresenterId) {
+    errEl.style.display = 'block';
+    errEl.textContent = '⚠️ Presenter ID is required.';
+    document.getElementById('ap-manual-id').focus();
+    return;
+  }
+  if (!elApiKey) {
+    errEl.style.display = 'block';
+    errEl.textContent = '⚠️ ElevenLabs API key is required (click 🔑 in the header).';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  // Disable buttons during setup
+  const confirmBtn = document.getElementById('ap-confirm-btn');
+  const cancelBtn  = document.getElementById('ap-cancel-btn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '⏳ Setting up…';
+  cancelBtn.disabled = true;
+
+  try {
+    const did = new DIDAgent(didApiKey);
+
+    _showApStatus('🔐 Storing ElevenLabs key in D-ID…');
+    const secretId = await did.storeElevenLabsSecret(elApiKey);
+
+    _showApStatus('🤖 Creating D-ID agent for ' + activeDoctor.name + '…');
+    const { agentId } = await did.createElevenLabsAgent(
+      activeDoctor.name,
+      activeDoctor.agentId,   // ElevenLabs agent ID
+      pickedPresenterId,
+      secretId
+    );
+
+    _showApStatus('⏳ Waiting for agent to be ready (this takes ~30s)…');
+    await did.pollAgentReady(agentId);
+
+    // Save to localStorage
+    try { localStorage.setItem('did_agent_' + activeDoctor.id, agentId); } catch {}
+
+    _showApStatus('✅ Agent ready! Launching video call…');
+
+    closeAvatarPicker();
+    await launchVideoCall(agentId);
+
+  } catch (err) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = '🎬 Setup & Launch';
+    cancelBtn.disabled = false;
+    document.getElementById('ap-confirm-error').style.display = 'block';
+    document.getElementById('ap-confirm-error').textContent = '⚠️ ' + err.message;
+    document.getElementById('ap-setup-status').style.display = 'none';
+    console.error('D-ID setup error:', err);
+  }
+}
+</script>
+</body>
+</html>

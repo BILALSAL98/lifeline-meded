@@ -19,6 +19,8 @@ import {
   BarChart2,
   X,
   Activity,
+  FlaskConical,
+  CreditCard,
 } from "lucide-react";
 import { LifelineLogo } from "@/components/ui/LifelineLogo";
 import { cn } from "@/lib/utils";
@@ -46,7 +48,9 @@ const navSections = [
     label: "Tools",
     items: [
       { href: "/dashboard/rounds", icon: Activity, label: "Lifeline Rounds™", badge: "🏥" },
-      { href: "/recall", icon: Layers, label: "Lifeline Recall", badge: "New" },
+      { href: "/dashboard/roundroom", icon: FlaskConical, label: "Round Room", badge: "New" },
+      { href: "/dashboard/anki", icon: CreditCard, label: "Anki Creator", badge: "New" },
+      { href: "/recall", icon: Layers, label: "Lifeline Recall", badge: null },
       { href: "/dashboard/graph", icon: Network, label: "Knowledge Graph", badge: null },
     ],
   },
